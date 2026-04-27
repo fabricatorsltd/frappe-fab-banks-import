@@ -1,25 +1,23 @@
 app_name = "fab_banks_import"
-app_title = "Fab Banks Import"
+app_title = "FAB Banks Import"
 app_publisher = "fabricators"
-app_description = "Import banks definition for IBAN parsing"
+app_description = "Import ABI/CAB banking directories for ERPNext"
 app_email = "support@fabricators.ltd"
 app_license = "agpl-3.0"
+app_home = "/app/fab-banks-import"
 
 # Apps
 # ------------------
 
-# required_apps = []
+required_apps = ["erpnext", "fab"]
 
-# Each item in the list will be shown as an app in the apps page
-# add_to_apps_screen = [
-# 	{
-# 		"name": "fab_banks_import",
-# 		"logo": "/assets/fab_banks_import/logo.png",
-# 		"title": "Fab Banks Import",
-# 		"route": "/fab_banks_import",
-# 		"has_permission": "fab_banks_import.api.permission.has_app_permission"
-# 	}
-# ]
+add_to_apps_screen = [
+	{
+		"name": app_name,
+		"title": app_title,
+		"route": app_home,
+	}
+]
 
 # Includes in <head>
 # ------------------
@@ -43,8 +41,12 @@ app_license = "agpl-3.0"
 # page_js = {"page" : "public/js/file.js"}
 
 # include js in doctype views
-# doctype_js = {"doctype" : "public/js/doctype.js"}
-# doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
+doctype_js = {
+	"Bank Account": "public/js/bank_account.js",
+}
+doctype_list_js = {
+	"Bank": "public/js/bank_list.js",
+}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
 
@@ -85,8 +87,7 @@ app_license = "agpl-3.0"
 # Installation
 # ------------
 
-# before_install = "fab_banks_import.install.before_install"
-# after_install = "fab_banks_import.install.after_install"
+after_install = "fab_banks_import.install.after_install"
 
 # Uninstallation
 # ------------
@@ -255,4 +256,6 @@ app_license = "agpl-3.0"
 # ------------
 # List of apps whose translatable strings should be excluded from this app's translations.
 # ignore_translatable_strings_from = []
+# after_app_uninstall = "fab_banks_import.utils.after_app_uninstall"
 
+after_migrate = ["fab_banks_import.install.after_migrate"]

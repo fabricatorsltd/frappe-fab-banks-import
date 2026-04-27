@@ -1,0 +1,48 @@
+{
+ "app": "fab_banks_import",
+ "charts": [],
+ "content": "[{\"id\":\"fab_banks_header\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Banks Import</span>\",\"col\":12}},{\"id\":\"fab_banks_shortcut_1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Banks\",\"col\":3}},{\"id\":\"fab_banks_shortcut_2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Bank Accounts\",\"col\":3}}]",
+ "creation": "2026-04-27 06:10:00.000000",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "bank",
+ "idx": 0,
+ "indicator_color": "blue",
+ "is_hidden": 0,
+ "label": "Banks Import",
+ "links": [],
+ "modified": "2026-04-27 06:10:00.000000",
+ "modified_by": "Administrator",
+ "module": "Fab Banks Import",
+ "name": "Banks Import",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [],
+ "sequence_id": 26.0,
+ "shortcuts": [
+  {
+   "color": "Blue",
+   "doc_view": "List",
+   "label": "Banks",
+   "link_to": "Bank",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Bank Accounts",
+   "link_to": "Bank Account",
+   "stats_filter": "[]",
+   "type": "DocType"
+  }
+ ],
+ "title": "Banks Import",
+ "type": "Workspace"
+}

@@ -1,0 +1,54 @@
+# Translations template for FAB Banks Import.
+# Copyright (C) 2026 fabricators
+# This file is distributed under the same license as the FAB Banks Import project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: FAB Banks Import VERSION\n"
+"Report-Msgid-Bugs-To: support@fabricators.ltd\n"
+"POT-Creation-Date: 2026-04-26 10:37+0000\n"
+"PO-Revision-Date: 2026-04-26 10:37+0000\n"
+"Last-Translator: support@fabricators.ltd\n"
+"Language-Team: support@fabricators.ltd\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.16.0\n"
+
+#: fab_banks_import/install.py:25
+msgid "ABI Code"
+msgstr ""
+
+#: fab_banks_import/public/js/bank_account.js:23
+msgid "Bank already matches {0}"
+msgstr ""
+
+#: fab_banks_import/public/js/bank_account.js:31
+msgid "Bank set to {0}. Save the document to persist the change."
+msgstr ""
+
+#: fab_banks_import/bank_directory.py:113
+msgid "Could not extract an ABI code from IBAN {0}."
+msgstr ""
+
+#: fab_banks_import/bank_directory.py:109
+msgid "Enter an IBAN first."
+msgstr ""
+
+#: fab_banks_import/bank_directory.py:118
+msgid "No imported Bank matches ABI code {0}."
+msgstr ""
+
+#: fab_banks_import/bank_directory.py:114
+msgid "Only Italian IBANs with ABI/CAB codes are supported."
+msgstr ""
+
+#: fab_banks_import/public/js/bank_account.js:14
+msgid "Resolving bank from IBAN"
+msgstr ""
+
+#: fab_banks_import/public/js/bank_account.js:7
+msgid "Update Bank from IBAN"
+msgstr ""
+

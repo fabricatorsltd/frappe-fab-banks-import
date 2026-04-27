@@ -1,0 +1,54 @@
+#
+msgid ""
+msgstr ""
+"Project-Id-Version:  fab_banks_import\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-04-26 10:37+0000\n"
+"PO-Revision-Date: 2026-04-26 12:02+0200\n"
+"Last-Translator: FAB Team\n"
+"Language: en\n"
+"Language-Team: English\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.16.0\n"
+
+#: fab_banks_import/install.py:25
+msgid "ABI Code"
+msgstr "ABI Code"
+
+#: fab_banks_import/public/js/bank_account.js:23
+msgid "Bank already matches {0}"
+msgstr "Bank already matches {0}"
+
+#: fab_banks_import/public/js/bank_account.js:31
+msgid "Bank set to {0}. Save the document to persist the change."
+msgstr "Bank set to {0}. Save the document to persist the change."
+
+#: fab_banks_import/bank_directory.py:113
+#, python-brace-format
+msgid "Could not extract an ABI code from IBAN {0}."
+msgstr "Could not extract an ABI code from IBAN {0}."
+
+#: fab_banks_import/bank_directory.py:109
+msgid "Enter an IBAN first."
+msgstr "Enter an IBAN first."
+
+#: fab_banks_import/bank_directory.py:118
+#, python-brace-format
+msgid "No imported Bank matches ABI code {0}."
+msgstr "No imported Bank matches ABI code {0}."
+
+#: fab_banks_import/bank_directory.py:114
+msgid "Only Italian IBANs with ABI/CAB codes are supported."
+msgstr "Only Italian IBANs with ABI/CAB codes are supported."
+
+#: fab_banks_import/public/js/bank_account.js:14
+msgid "Resolving bank from IBAN"
+msgstr "Resolving bank from IBAN"
+
+#: fab_banks_import/public/js/bank_account.js:7
+msgid "Update Bank from IBAN"
+msgstr "Update Bank from IBAN"
+
