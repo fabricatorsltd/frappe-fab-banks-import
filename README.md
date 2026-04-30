@@ -1,4 +1,4 @@
-# FAB Banks Import
+# fab Banks Import
 
 Standalone ABI/CAB directory import for Frappe and ERPNext.
 
@@ -11,7 +11,7 @@ tables.
 Current responsibilities include:
 
 - importing public ABI/CAB source files into ERPNext `Bank` records
-- storing ABI metadata used by downstream FAB apps
+- storing ABI metadata used by downstream fab apps
 - exposing operator-facing import actions in Desk
 - supporting post-import bank relinking from IBAN data
 
@@ -37,6 +37,15 @@ bench --site [site] execute fab_banks_import.bank_directory.import_abi_cab_file 
 ```
 
 Or use **Bank -> Menu -> Import ABI/CAB Directory** in Desk.
+
+## Contributing
+
+Follow the official Frappe contribution guidelines:
+
+- <https://github.com/frappe/erpnext/wiki/Contribution-Guidelines>
+
+Use the upstream guidance for proposals, coding standards, pull requests, and
+documentation updates when contributing to this app.
 
 ## Development
 
