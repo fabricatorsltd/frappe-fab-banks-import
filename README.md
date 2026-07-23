@@ -38,6 +38,15 @@ bench --site [site] execute fab_banks_import.bank_directory.import_abi_cab_file 
 
 Or use **Bank -> Menu -> Import ABI/CAB Directory** in Desk.
 
+## Bundled directory snapshot
+
+`data/` carries a dated snapshot of the public UniCredit treasury ABI/CAB
+directory (`https://tesoreria.unicreditbanca.it/downloadFileAbiCab.do`,
+fixed width CBI layout, zipped). To refresh: download from the same URL
+with a browser user agent, drop it in `data/` with the new date in the
+name, and import the extracted `abicab.txt` as above. Snapshots are kept
+so a site can be provisioned without depending on the bank's endpoint.
+
 ## Contributing
 
 Follow the official Frappe contribution guidelines:
