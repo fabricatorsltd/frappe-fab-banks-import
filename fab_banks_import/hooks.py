@@ -11,13 +11,17 @@ app_home = "/app/fab-banks-import"
 
 required_apps = ["erpnext", "fab"]
 
-add_to_apps_screen = [
-	{
-		"name": app_name,
-		"title": app_title,
-		"route": app_home,
-	}
-]
+# Deliberately not declared: this app is reached through the "fab" container on the
+# desk, so it must not claim a top level tile of its own. Declaring it also made
+# create_desktop_icons_from_installed_apps() read app_details["logo"] without a
+# default, which raised KeyError and aborted desktop icon creation for the site.
+# add_to_apps_screen = [
+# 	{
+# 		"name": app_name,
+# 		"title": app_title,
+# 		"route": app_home,
+# 	}
+# ]
 
 # Includes in <head>
 # ------------------
