@@ -1,0 +1,199 @@
+{
+ "actions": [],
+ "creation": "2026-11-10 15:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "enabled",
+  "api_key",
+  "start_date",
+  "column_break_main",
+  "last_sync",
+  "opening_balance",
+  "opening_journal_entry",
+  "accounting_section",
+  "company",
+  "bank_account",
+  "payout_bank_account",
+  "column_break_accounting",
+  "income_account",
+  "fee_account",
+  "clearing_account",
+  "statement_section",
+  "statement_email_enabled",
+  "last_statement_sent",
+  "column_break_statement",
+  "statement_recipients",
+  "log_section",
+  "last_sync_log"
+ ],
+ "fields": [
+  {
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enabled",
+   "default": "0",
+   "description": "Run the sync every day"
+  },
+  {
+   "fieldname": "api_key",
+   "fieldtype": "Password",
+   "label": "API Key",
+   "description": "Restricted key with read access to balance, balance transactions and payouts"
+  },
+  {
+   "fieldname": "start_date",
+   "fieldtype": "Date",
+   "label": "Start Date",
+   "default": "2025-01-01",
+   "reqd": 1,
+   "description": "Balance transactions created before this date are never read"
+  },
+  {
+   "fieldname": "column_break_main",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "last_sync",
+   "fieldtype": "Datetime",
+   "label": "Last Sync",
+   "read_only": 1
+  },
+  {
+   "fieldname": "opening_balance",
+   "fieldtype": "Currency",
+   "label": "Opening Balance",
+   "read_only": 1,
+   "options": "EUR"
+  },
+  {
+   "fieldname": "opening_journal_entry",
+   "fieldtype": "Link",
+   "label": "Opening Journal Entry",
+   "options": "Journal Entry",
+   "read_only": 1
+  },
+  {
+   "fieldname": "accounting_section",
+   "fieldtype": "Section Break",
+   "label": "Accounting"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company"
+  },
+  {
+   "fieldname": "bank_account",
+   "fieldtype": "Link",
+   "label": "Stripe Bank Account",
+   "options": "Bank Account"
+  },
+  {
+   "fieldname": "payout_bank_account",
+   "fieldtype": "Link",
+   "label": "Payout Bank Account",
+   "options": "Bank Account",
+   "description": "Bank account that receives Stripe payouts"
+  },
+  {
+   "fieldname": "column_break_accounting",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "income_account",
+   "fieldtype": "Link",
+   "label": "Donation Income Account",
+   "options": "Account"
+  },
+  {
+   "fieldname": "fee_account",
+   "fieldtype": "Link",
+   "label": "Fee Account",
+   "options": "Account"
+  },
+  {
+   "fieldname": "clearing_account",
+   "fieldtype": "Link",
+   "label": "Opening Clearing Account",
+   "options": "Account"
+  },
+  {
+   "fieldname": "statement_section",
+   "fieldtype": "Section Break",
+   "label": "Monthly Statement Email"
+  },
+  {
+   "fieldname": "statement_email_enabled",
+   "fieldtype": "Check",
+   "label": "Email Monthly Statement",
+   "default": "0",
+   "description": "Send the previous month's PDF on day 3, or the following Monday when day 3 falls on a weekend"
+  },
+  {
+   "fieldname": "last_statement_sent",
+   "fieldtype": "Data",
+   "label": "Last Statement Sent",
+   "read_only": 1,
+   "description": "Period YYYY-MM"
+  },
+  {
+   "fieldname": "column_break_statement",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "statement_recipients",
+   "fieldtype": "Table",
+   "label": "Recipients",
+   "options": "Stripe Statement Recipient"
+  },
+  {
+   "fieldname": "log_section",
+   "fieldtype": "Section Break",
+   "label": "Last Sync Result",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "last_sync_log",
+   "fieldtype": "Code",
+   "label": "Last Sync Log",
+   "options": "JSON",
+   "read_only": 1
+  }
+ ],
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-11-10 15:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Fab Banks Import",
+ "name": "Stripe Import Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 0,
+   "print": 0,
+   "read": 1,
+   "role": "System Manager",
+   "share": 0,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 0,
+   "print": 0,
+   "read": 1,
+   "role": "Accounts Manager",
+   "share": 0,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

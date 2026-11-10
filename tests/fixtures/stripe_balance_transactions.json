@@ -1,0 +1,12 @@
+[
+ {"id": "txn_donation_a", "object": "balance_transaction", "type": "payment", "currency": "eur", "amount": 1255, "fee": 0, "net": 1255, "created": 1772366400, "reporting_category": "charge",
+  "source": {"id": "py_charge_a", "object": "charge", "charge": null, "metadata": {"liberapay_transfer_id": "100001"}}},
+ {"id": "txn_donation_b", "object": "balance_transaction", "type": "charge", "currency": "eur", "amount": 1000, "fee": 45, "net": 955, "created": 1772539200, "reporting_category": "charge",
+  "source": {"id": "ch_charge_b", "object": "charge", "charge": null, "metadata": {"liberapay_transfer_id": "100002"}}},
+ {"id": "txn_reversal_a", "object": "balance_transaction", "type": "payment_refund", "currency": "eur", "amount": -138, "fee": 0, "net": -138, "created": 1772712000, "reporting_category": "refund",
+  "source": {"id": "pyr_refund_a", "object": "refund", "charge": "py_charge_a", "metadata": {}}},
+ {"id": "txn_stripe_fee", "object": "balance_transaction", "type": "stripe_fee", "currency": "eur", "amount": -7, "fee": 0, "net": -7, "created": 1772884800, "reporting_category": "fee",
+  "source": null},
+ {"id": "txn_payout", "object": "balance_transaction", "type": "payout", "currency": "eur", "amount": -2065, "fee": 0, "net": -2065, "created": 1773754513, "reporting_category": "payout",
+  "source": {"id": "po_payout_a", "object": "payout", "arrival_date": 1773792000, "metadata": {}}}
+]

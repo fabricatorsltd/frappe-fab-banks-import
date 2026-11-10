@@ -52,3 +52,198 @@ msgstr ""
 msgid "Update Bank from IBAN"
 msgstr ""
 
+msgctxt "stripe_statement"
+msgid "Stripe statement"
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "Stripe statement {0}"
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "stripe-statement"
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "Account"
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "Currency"
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "Period"
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "From {0} to {1}"
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "Generated on {0}"
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "Date"
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "Type"
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "Liberapay transfer / Stripe ID"
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "Gross"
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "Fee"
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "Net"
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "Balance"
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "Opening balance on {0}"
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "Closing balance on {0}"
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "No movements in this period"
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "Opening balance"
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "Closing balance"
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "Donations (gross)"
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "Fees (Stripe and Liberapay)"
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "Payouts to bank"
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "Check: computed closing balance {0} EUR, {1} {2} EUR"
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "matches"
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "difference {0} EUR"
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "Ledger balance of {0} on {1}: {2} EUR (months not yet closed are not posted)"
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "current Stripe balance (API /v1/balance)"
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "computed running balance"
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "Donation"
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "Liberapay commission"
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "Stripe fee"
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "Payout to bank"
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "Attached is the Stripe statement for {0}."
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "Stripe opening balance on {0}"
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "Liberapay donations via Stripe {0}"
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "Stripe payout {0} to bank"
+msgstr ""
+
+msgid "Sync now"
+msgstr ""
+
+msgid "Syncing Stripe"
+msgstr ""
+
+msgid "Stripe sync"
+msgstr ""
+
+msgid "Statement PDF"
+msgstr ""
+
+msgid "Year"
+msgstr ""
+
+msgid "Month"
+msgstr ""
+
+msgid "Leave empty for the whole year"
+msgstr ""
+
+msgid "Download"
+msgstr ""
+
+msgid "Send last month's statement now"
+msgstr ""
+
+msgid "Sending statement"
+msgstr ""
+
+msgid "Statement {0} queued for {1}"
+msgstr ""
+
+msgid "Statement {0} not sent: {1}"
+msgstr ""
+
+msgid "No recipients configured for the Stripe statement"
+msgstr ""
+
+msgid "Liberapay Transfer ID"
+msgstr ""
+
+msgid "Stripe Gross Amount"
+msgstr ""
+
+msgid "Stripe Fee"
+msgstr ""

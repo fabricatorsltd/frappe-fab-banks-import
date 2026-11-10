@@ -1,0 +1,41 @@
+{
+ "actions": [],
+ "creation": "2026-11-10 16:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "email",
+  "language"
+ ],
+ "fields": [
+  {
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "options": "Email",
+   "label": "Email",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "language",
+   "fieldtype": "Link",
+   "options": "Language",
+   "label": "Language",
+   "in_list_view": 1,
+   "description": "Used when the address is not a user; defaults to the system language"
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-11-10 16:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Fab Banks Import",
+ "name": "Stripe Statement Recipient",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

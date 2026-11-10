@@ -52,3 +52,198 @@ msgstr "Resolving bank from IBAN"
 msgid "Update Bank from IBAN"
 msgstr "Update Bank from IBAN"
 
+msgctxt "stripe_statement"
+msgid "Stripe statement"
+msgstr "Stripe statement"
+
+msgctxt "stripe_statement"
+msgid "Stripe statement {0}"
+msgstr "Stripe statement {0}"
+
+msgctxt "stripe_statement"
+msgid "stripe-statement"
+msgstr "stripe-statement"
+
+msgctxt "stripe_statement"
+msgid "Account"
+msgstr "Account"
+
+msgctxt "stripe_statement"
+msgid "Currency"
+msgstr "Currency"
+
+msgctxt "stripe_statement"
+msgid "Period"
+msgstr "Period"
+
+msgctxt "stripe_statement"
+msgid "From {0} to {1}"
+msgstr "From {0} to {1}"
+
+msgctxt "stripe_statement"
+msgid "Generated on {0}"
+msgstr "Generated on {0}"
+
+msgctxt "stripe_statement"
+msgid "Date"
+msgstr "Date"
+
+msgctxt "stripe_statement"
+msgid "Type"
+msgstr "Type"
+
+msgctxt "stripe_statement"
+msgid "Liberapay transfer / Stripe ID"
+msgstr "Liberapay transfer / Stripe ID"
+
+msgctxt "stripe_statement"
+msgid "Gross"
+msgstr "Gross"
+
+msgctxt "stripe_statement"
+msgid "Fee"
+msgstr "Fee"
+
+msgctxt "stripe_statement"
+msgid "Net"
+msgstr "Net"
+
+msgctxt "stripe_statement"
+msgid "Balance"
+msgstr "Balance"
+
+msgctxt "stripe_statement"
+msgid "Opening balance on {0}"
+msgstr "Opening balance on {0}"
+
+msgctxt "stripe_statement"
+msgid "Closing balance on {0}"
+msgstr "Closing balance on {0}"
+
+msgctxt "stripe_statement"
+msgid "No movements in this period"
+msgstr "No movements in this period"
+
+msgctxt "stripe_statement"
+msgid "Opening balance"
+msgstr "Opening balance"
+
+msgctxt "stripe_statement"
+msgid "Closing balance"
+msgstr "Closing balance"
+
+msgctxt "stripe_statement"
+msgid "Donations (gross)"
+msgstr "Donations (gross)"
+
+msgctxt "stripe_statement"
+msgid "Fees (Stripe and Liberapay)"
+msgstr "Fees (Stripe and Liberapay)"
+
+msgctxt "stripe_statement"
+msgid "Payouts to bank"
+msgstr "Payouts to bank"
+
+msgctxt "stripe_statement"
+msgid "Check: computed closing balance {0} EUR, {1} {2} EUR"
+msgstr "Check: computed closing balance {0} EUR, {1} {2} EUR"
+
+msgctxt "stripe_statement"
+msgid "matches"
+msgstr "matches"
+
+msgctxt "stripe_statement"
+msgid "difference {0} EUR"
+msgstr "difference {0} EUR"
+
+msgctxt "stripe_statement"
+msgid "Ledger balance of {0} on {1}: {2} EUR (months not yet closed are not posted)"
+msgstr "Ledger balance of {0} on {1}: {2} EUR (months not yet closed are not posted)"
+
+msgctxt "stripe_statement"
+msgid "current Stripe balance (API /v1/balance)"
+msgstr "current Stripe balance (API /v1/balance)"
+
+msgctxt "stripe_statement"
+msgid "computed running balance"
+msgstr "computed running balance"
+
+msgctxt "stripe_statement"
+msgid "Donation"
+msgstr "Donation"
+
+msgctxt "stripe_statement"
+msgid "Liberapay commission"
+msgstr "Liberapay commission"
+
+msgctxt "stripe_statement"
+msgid "Stripe fee"
+msgstr "Stripe fee"
+
+msgctxt "stripe_statement"
+msgid "Payout to bank"
+msgstr "Payout to bank"
+
+msgctxt "stripe_statement"
+msgid "Attached is the Stripe statement for {0}."
+msgstr "Attached is the Stripe statement for {0}."
+
+msgctxt "stripe_statement"
+msgid "Stripe opening balance on {0}"
+msgstr "Stripe opening balance on {0}"
+
+msgctxt "stripe_statement"
+msgid "Liberapay donations via Stripe {0}"
+msgstr "Liberapay donations via Stripe {0}"
+
+msgctxt "stripe_statement"
+msgid "Stripe payout {0} to bank"
+msgstr "Stripe payout {0} to bank"
+
+msgid "Sync now"
+msgstr "Sync now"
+
+msgid "Syncing Stripe"
+msgstr "Syncing Stripe"
+
+msgid "Stripe sync"
+msgstr "Stripe sync"
+
+msgid "Statement PDF"
+msgstr "Statement PDF"
+
+msgid "Year"
+msgstr "Year"
+
+msgid "Month"
+msgstr "Month"
+
+msgid "Leave empty for the whole year"
+msgstr "Leave empty for the whole year"
+
+msgid "Download"
+msgstr "Download"
+
+msgid "Send last month's statement now"
+msgstr "Send last month's statement now"
+
+msgid "Sending statement"
+msgstr "Sending statement"
+
+msgid "Statement {0} queued for {1}"
+msgstr "Statement {0} queued for {1}"
+
+msgid "Statement {0} not sent: {1}"
+msgstr "Statement {0} not sent: {1}"
+
+msgid "No recipients configured for the Stripe statement"
+msgstr "No recipients configured for the Stripe statement"
+
+msgid "Liberapay Transfer ID"
+msgstr "Liberapay Transfer ID"
+
+msgid "Stripe Gross Amount"
+msgstr "Stripe Gross Amount"
+
+msgid "Stripe Fee"
+msgstr "Stripe Fee"

@@ -172,6 +172,12 @@ after_install = "fab_banks_import.install.after_install"
 # 	],
 # }
 
+scheduler_events = {
+	"daily": [
+		"fab_banks_import.stripe_import.daily_sync",
+	],
+}
+
 # Testing
 # -------
 

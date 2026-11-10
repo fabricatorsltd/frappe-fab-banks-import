@@ -52,3 +52,198 @@ msgstr "Risoluzione della banca dall'IBAN"
 msgid "Update Bank from IBAN"
 msgstr "Aggiorna banca da IBAN"
 
+msgctxt "stripe_statement"
+msgid "Stripe statement"
+msgstr "Estratto conto Stripe"
+
+msgctxt "stripe_statement"
+msgid "Stripe statement {0}"
+msgstr "Estratto conto Stripe {0}"
+
+msgctxt "stripe_statement"
+msgid "stripe-statement"
+msgstr "estratto-conto-stripe"
+
+msgctxt "stripe_statement"
+msgid "Account"
+msgstr "Conto"
+
+msgctxt "stripe_statement"
+msgid "Currency"
+msgstr "Valuta"
+
+msgctxt "stripe_statement"
+msgid "Period"
+msgstr "Periodo"
+
+msgctxt "stripe_statement"
+msgid "From {0} to {1}"
+msgstr "Dal {0} al {1}"
+
+msgctxt "stripe_statement"
+msgid "Generated on {0}"
+msgstr "Generato il {0}"
+
+msgctxt "stripe_statement"
+msgid "Date"
+msgstr "Data"
+
+msgctxt "stripe_statement"
+msgid "Type"
+msgstr "Tipo"
+
+msgctxt "stripe_statement"
+msgid "Liberapay transfer / Stripe ID"
+msgstr "Transfer Liberapay / ID Stripe"
+
+msgctxt "stripe_statement"
+msgid "Gross"
+msgstr "Lordo"
+
+msgctxt "stripe_statement"
+msgid "Fee"
+msgstr "Commissione"
+
+msgctxt "stripe_statement"
+msgid "Net"
+msgstr "Netto"
+
+msgctxt "stripe_statement"
+msgid "Balance"
+msgstr "Saldo"
+
+msgctxt "stripe_statement"
+msgid "Opening balance on {0}"
+msgstr "Saldo iniziale al {0}"
+
+msgctxt "stripe_statement"
+msgid "Closing balance on {0}"
+msgstr "Saldo finale al {0}"
+
+msgctxt "stripe_statement"
+msgid "No movements in this period"
+msgstr "Nessun movimento nel periodo"
+
+msgctxt "stripe_statement"
+msgid "Opening balance"
+msgstr "Saldo iniziale"
+
+msgctxt "stripe_statement"
+msgid "Closing balance"
+msgstr "Saldo finale"
+
+msgctxt "stripe_statement"
+msgid "Donations (gross)"
+msgstr "Donazioni (lordo)"
+
+msgctxt "stripe_statement"
+msgid "Fees (Stripe and Liberapay)"
+msgstr "Commissioni (Stripe e Liberapay)"
+
+msgctxt "stripe_statement"
+msgid "Payouts to bank"
+msgstr "Bonifici a banca"
+
+msgctxt "stripe_statement"
+msgid "Check: computed closing balance {0} EUR, {1} {2} EUR"
+msgstr "Verifica: saldo finale calcolato {0} EUR, {1} {2} EUR"
+
+msgctxt "stripe_statement"
+msgid "matches"
+msgstr "quadra"
+
+msgctxt "stripe_statement"
+msgid "difference {0} EUR"
+msgstr "differenza {0} EUR"
+
+msgctxt "stripe_statement"
+msgid "Ledger balance of {0} on {1}: {2} EUR (months not yet closed are not posted)"
+msgstr "Saldo contabile {0} al {1}: {2} EUR (i mesi non ancora chiusi non sono contabilizzati)"
+
+msgctxt "stripe_statement"
+msgid "current Stripe balance (API /v1/balance)"
+msgstr "saldo Stripe attuale (API /v1/balance)"
+
+msgctxt "stripe_statement"
+msgid "computed running balance"
+msgstr "saldo progressivo calcolato"
+
+msgctxt "stripe_statement"
+msgid "Donation"
+msgstr "Donazione"
+
+msgctxt "stripe_statement"
+msgid "Liberapay commission"
+msgstr "Commissione Liberapay"
+
+msgctxt "stripe_statement"
+msgid "Stripe fee"
+msgstr "Commissione Stripe"
+
+msgctxt "stripe_statement"
+msgid "Payout to bank"
+msgstr "Bonifico a banca"
+
+msgctxt "stripe_statement"
+msgid "Attached is the Stripe statement for {0}."
+msgstr "In allegato l'estratto conto Stripe di {0}."
+
+msgctxt "stripe_statement"
+msgid "Stripe opening balance on {0}"
+msgstr "Saldo iniziale Stripe al {0}"
+
+msgctxt "stripe_statement"
+msgid "Liberapay donations via Stripe {0}"
+msgstr "Donazioni Liberapay via Stripe {0}"
+
+msgctxt "stripe_statement"
+msgid "Stripe payout {0} to bank"
+msgstr "Bonifico Stripe {0} verso banca"
+
+msgid "Sync now"
+msgstr "Sincronizza ora"
+
+msgid "Syncing Stripe"
+msgstr "Sincronizzazione Stripe in corso"
+
+msgid "Stripe sync"
+msgstr "Sincronizzazione Stripe"
+
+msgid "Statement PDF"
+msgstr "Estratto conto PDF"
+
+msgid "Year"
+msgstr "Anno"
+
+msgid "Month"
+msgstr "Mese"
+
+msgid "Leave empty for the whole year"
+msgstr "Lascia vuoto per l'intero anno"
+
+msgid "Download"
+msgstr "Scarica"
+
+msgid "Send last month's statement now"
+msgstr "Invia ora l'estratto del mese scorso"
+
+msgid "Sending statement"
+msgstr "Invio estratto in corso"
+
+msgid "Statement {0} queued for {1}"
+msgstr "Estratto {0} in coda per {1}"
+
+msgid "Statement {0} not sent: {1}"
+msgstr "Estratto {0} non inviato: {1}"
+
+msgid "No recipients configured for the Stripe statement"
+msgstr "Nessun destinatario configurato per l'estratto conto Stripe"
+
+msgid "Liberapay Transfer ID"
+msgstr "ID transfer Liberapay"
+
+msgid "Stripe Gross Amount"
+msgstr "Importo lordo Stripe"
+
+msgid "Stripe Fee"
+msgstr "Commissione Stripe"

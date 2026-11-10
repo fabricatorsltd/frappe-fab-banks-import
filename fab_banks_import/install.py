@@ -29,5 +29,33 @@ def get_custom_fields() -> dict[str, list[dict[str, object]]]:
 				"in_standard_filter": 1,
 				"unique": 1,
 			}
-		]
+		],
+		"Bank Transaction": [
+			{
+				"fieldname": "fab_liberapay_transfer_id",
+				"label": _("Liberapay Transfer ID"),
+				"fieldtype": "Data",
+				"insert_after": "transaction_type",
+				"read_only": 1,
+				"depends_on": "fab_liberapay_transfer_id",
+			},
+			{
+				"fieldname": "fab_stripe_gross",
+				"label": _("Stripe Gross Amount"),
+				"fieldtype": "Currency",
+				"options": "currency",
+				"insert_after": "fab_liberapay_transfer_id",
+				"read_only": 1,
+				"depends_on": "fab_stripe_gross",
+			},
+			{
+				"fieldname": "fab_stripe_fee",
+				"label": _("Stripe Fee"),
+				"fieldtype": "Currency",
+				"options": "currency",
+				"insert_after": "fab_stripe_gross",
+				"read_only": 1,
+				"depends_on": "fab_stripe_fee",
+			},
+		],
 	}

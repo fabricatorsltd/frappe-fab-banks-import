@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="{{ lang }}">
+<head>
+<meta charset="utf-8">
+<meta name="pdf-title" content="{{ title }}">
+<meta name="pdf-author" content="{{ company }}">
+<title>{{ title }}</title>
+<style>
+	.print-format { margin-top: 14mm; margin-bottom: 14mm; margin-left: 14mm; margin-right: 14mm; }
+	div.print-format { margin: 0 !important; padding: 0 !important; }
+	body { font-family: Montserrat, "DejaVu Sans", sans-serif; font-size: 8.5pt; color: #222; margin: 0; }
+	h1 { font-size: 15pt; margin: 0 0 2mm; font-weight: 700; }
+	.meta { border-top: 2px solid #f07c00; padding-top: 2mm; margin-bottom: 5mm; display: flex; justify-content: space-between; }
+	.meta div { line-height: 1.5; }
+	table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+	thead { display: table-header-group; }
+	th { text-align: left; font-weight: 600; border-bottom: 1px solid #222; padding: 1.5mm 1mm; }
+	td { padding: 1.2mm 1mm; border-bottom: 0.5px solid #ddd; vertical-align: top; }
+	tr { break-inside: avoid; page-break-inside: avoid; }
+	.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+	.small { font-size: 6.5pt; color: #777; }
+	tr.band td { font-weight: 600; background: #f6f6f6; border-bottom: 1px solid #bbb; }
+	.summary { margin-top: 6mm; width: 60%; margin-left: auto; break-inside: avoid; }
+	.summary td { border-bottom: 0.5px solid #ddd; }
+	.summary tr.total td { font-weight: 700; border-top: 1px solid #222; border-bottom: none; }
+	.check { margin-top: 5mm; padding: 2mm 3mm; border: 1px solid #bbb; break-inside: avoid; }
+	.ok { color: #1a7f37; font-weight: 700; }
+	.ko { color: #b42318; font-weight: 700; }
+	.empty { text-align: center; color: #777; padding: 4mm; }
+</style>
+</head>
+<body>
+<div class="print-format">
+	<h1>{{ _("Stripe statement", context="stripe_statement") }}</h1>
+	<div class="meta">
+		<div>
+			<strong>{{ company }}</strong><br>
+			{{ _("Account", context="stripe_statement") }}: {{ bank_account }} ({{ gl_account }})<br>
+			{{ _("Currency", context="stripe_statement") }}: EUR
+		</div>
+		<div style="text-align:right">
+			{{ _("Period", context="stripe_statement") }}: <strong>{{ period }}</strong><br>
+			{{ _("From {0} to {1}", context="stripe_statement").format(fdate(first), fdate(last)) }}<br>
+			{{ _("Generated on {0}", context="stripe_statement").format(generated) }}
+		</div>
+	</div>
+
+	<table>
+		<colgroup>
+			<col style="width:11%"><col style="width:19%"><col style="width:26%">
+			<col style="width:11%"><col style="width:10%"><col style="width:11%"><col style="width:12%">
+		</colgroup>
+		<thead>
+			<tr>
+				<th>{{ _("Date", context="stripe_statement") }}</th><th>{{ _("Type", context="stripe_statement") }}</th><th>{{ _("Liberapay transfer / Stripe ID", context="stripe_statement") }}</th>
+				<th class="num">{{ _("Gross", context="stripe_statement") }}</th><th class="num">{{ _("Fee", context="stripe_statement") }}</th><th class="num">{{ _("Net", context="stripe_statement") }}</th><th class="num">{{ _("Balance", context="stripe_statement") }}</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr class="band">
+				<td colspan="6">{{ _("Opening balance on {0}", context="stripe_statement").format(fdate(first)) }}</td>
+				<td class="num">{{ eur(totals.opening) }}</td>
+			</tr>
+			{% for row in rows %}
+			<tr>
+				<td>{{ row.date }}</td>
+				<td>{{ row.type }}</td>
+				<td>{{ row.liberapay or "" }}<br><span class="small">{{ row.stripe_id }}</span></td>
+				<td class="num">{{ eur(row.gross) }}</td>
+				<td class="num">{{ eur(row.fee) if row.fee else "" }}</td>
+				<td class="num">{{ eur(row.net) }}</td>
+				<td class="num">{{ eur(row.balance) }}</td>
+			</tr>
+			{% else %}
+			<tr><td colspan="7" class="empty">{{ _("No movements in this period", context="stripe_statement") }}</td></tr>
+			{% endfor %}
+			<tr class="band">
+				<td colspan="6">{{ _("Closing balance on {0}", context="stripe_statement").format(fdate(last)) }}</td>
+				<td class="num">{{ eur(totals.closing) }}</td>
+			</tr>
+		</tbody>
+	</table>
+
+	<table class="summary">
+		<tr><td>{{ _("Opening balance", context="stripe_statement") }}</td><td class="num">{{ eur(totals.opening) }}</td></tr>
+		<tr><td>{{ _("Donations (gross)", context="stripe_statement") }}</td><td class="num">{{ eur(totals.donations) }}</td></tr>
+		<tr><td>{{ _("Fees (Stripe and Liberapay)", context="stripe_statement") }}</td><td class="num">{{ eur(-totals.charges) }}</td></tr>
+		<tr><td>{{ _("Payouts to bank", context="stripe_statement") }}</td><td class="num">{{ eur(-totals.payouts) }}</td></tr>
+		<tr class="total"><td>{{ _("Closing balance", context="stripe_statement") }}</td><td class="num">{{ eur(totals.closing) }}</td></tr>
+	</table>
+
+	<div class="check">
+		{{ _("Check: computed closing balance {0} EUR, {1} {2} EUR", context="stripe_statement").format(eur(totals.closing), reference_label, eur(reference)) }}:
+		{% if difference == 0 %}<span class="ok">{{ _("matches", context="stripe_statement") }}</span>{% else %}<span class="ko">{{ _("difference {0} EUR", context="stripe_statement").format(eur(difference)) }}</span>{% endif %}<br>
+		<span class="small">{{ _("Ledger balance of {0} on {1}: {2} EUR (months not yet closed are not posted)", context="stripe_statement").format(gl_account, fdate(last), eur(ledger)) }}</span>
+	</div>
+</div>
+</body>
+</html>
