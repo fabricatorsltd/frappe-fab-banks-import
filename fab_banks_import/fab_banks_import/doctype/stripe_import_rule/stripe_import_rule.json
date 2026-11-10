@@ -1,0 +1,133 @@
+{
+ "actions": [],
+ "creation": "2026-11-11 10:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "priority",
+  "label",
+  "conditions_section",
+  "movement_type",
+  "metadata_key",
+  "metadata_value",
+  "column_break_conditions",
+  "description_contains",
+  "customer",
+  "actions_section",
+  "income_account",
+  "cost_center",
+  "column_break_actions",
+  "reference_key",
+  "refund_treatment"
+ ],
+ "fields": [
+  {
+   "fieldname": "priority",
+   "fieldtype": "Int",
+   "label": "Priority",
+   "default": "10",
+   "in_list_view": 1,
+   "columns": 1,
+   "description": "Lower numbers are checked first"
+  },
+  {
+   "fieldname": "label",
+   "fieldtype": "Data",
+   "label": "Label",
+   "reqd": 1,
+   "in_list_view": 1,
+   "description": "Category shown in remarks and statements"
+  },
+  {
+   "fieldname": "conditions_section",
+   "fieldtype": "Section Break",
+   "label": "Conditions",
+   "description": "All set conditions must match; empty ones are ignored"
+  },
+  {
+   "fieldname": "movement_type",
+   "fieldtype": "Data",
+   "label": "Movement Type",
+   "in_list_view": 1,
+   "description": "Stripe balance transaction type (payment, charge, stripe_fee...) or kind (charge, refund, dispute, fee, other)"
+  },
+  {
+   "fieldname": "metadata_key",
+   "fieldtype": "Data",
+   "label": "Metadata Key",
+   "in_list_view": 1,
+   "description": "The charge metadata must contain this key"
+  },
+  {
+   "fieldname": "metadata_value",
+   "fieldtype": "Data",
+   "label": "Metadata Value",
+   "description": "If set, the metadata key must have exactly this value"
+  },
+  {
+   "fieldname": "column_break_conditions",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "description_contains",
+   "fieldtype": "Data",
+   "label": "Description Contains",
+   "description": "Case insensitive text in the charge description"
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Data",
+   "label": "Customer",
+   "description": "Stripe customer id or email"
+  },
+  {
+   "fieldname": "actions_section",
+   "fieldtype": "Section Break",
+   "label": "Actions"
+  },
+  {
+   "fieldname": "income_account",
+   "fieldtype": "Link",
+   "label": "Income Account",
+   "options": "Account",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "cost_center",
+   "fieldtype": "Link",
+   "label": "Cost Center",
+   "options": "Cost Center"
+  },
+  {
+   "fieldname": "column_break_actions",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "reference_key",
+   "fieldtype": "Data",
+   "label": "Reference Metadata Key",
+   "description": "Metadata key whose value becomes the Reference; defaults to the charge description"
+  },
+  {
+   "fieldname": "refund_treatment",
+   "fieldtype": "Select",
+   "label": "Refunds",
+   "options": "Reverse Income\nFee",
+   "default": "Reverse Income",
+   "description": "Refunds of matched charges reverse the income or go to the fee account"
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-11-11 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Fab Banks Import",
+ "name": "Stripe Import Rule",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

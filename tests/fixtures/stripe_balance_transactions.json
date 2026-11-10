@@ -1,12 +1,18 @@
 [
- {"id": "txn_donation_a", "object": "balance_transaction", "type": "payment", "currency": "eur", "amount": 1255, "fee": 0, "net": 1255, "created": 1772366400, "reporting_category": "charge",
-  "source": {"id": "py_charge_a", "object": "charge", "charge": null, "metadata": {"liberapay_transfer_id": "100001"}}},
- {"id": "txn_donation_b", "object": "balance_transaction", "type": "charge", "currency": "eur", "amount": 1000, "fee": 45, "net": 955, "created": 1772539200, "reporting_category": "charge",
-  "source": {"id": "ch_charge_b", "object": "charge", "charge": null, "metadata": {"liberapay_transfer_id": "100002"}}},
- {"id": "txn_reversal_a", "object": "balance_transaction", "type": "payment_refund", "currency": "eur", "amount": -138, "fee": 0, "net": -138, "created": 1772712000, "reporting_category": "refund",
+ {"id": "txn_charge_a", "type": "payment", "currency": "eur", "amount": 1255, "fee": 0, "net": 1255, "created": 1772366400, "reporting_category": "charge", "description": "Order A-1",
+  "source": {"id": "py_charge_a", "object": "charge", "charge": null, "description": "Order A-1", "metadata": {"order_id": "A-1"}}},
+ {"id": "txn_charge_b", "type": "charge", "currency": "eur", "amount": 1000, "fee": 45, "net": 955, "created": 1772539200, "reporting_category": "charge", "description": "Order B-2",
+  "source": {"id": "ch_charge_b", "object": "charge", "charge": null, "description": "Order B-2", "customer": "cus_test_1", "billing_details": {"email": "buyer@example.com"}, "metadata": {"order_id": "B-2", "channel": "web"}}},
+ {"id": "txn_charge_c", "type": "charge", "currency": "eur", "amount": 500, "fee": 0, "net": 500, "created": 1772625600, "reporting_category": "charge", "description": "Gift card",
+  "source": {"id": "ch_charge_c", "object": "charge", "charge": null, "description": "Gift card", "metadata": {}}},
+ {"id": "txn_refund_a", "type": "payment_refund", "currency": "eur", "amount": -138, "fee": 0, "net": -138, "created": 1772712000, "reporting_category": "refund", "description": "REFUND FOR PAYMENT",
   "source": {"id": "pyr_refund_a", "object": "refund", "charge": "py_charge_a", "metadata": {}}},
- {"id": "txn_stripe_fee", "object": "balance_transaction", "type": "stripe_fee", "currency": "eur", "amount": -7, "fee": 0, "net": -7, "created": 1772884800, "reporting_category": "fee",
+ {"id": "txn_dispute_b", "type": "adjustment", "currency": "eur", "amount": -1000, "fee": 1500, "net": -2500, "created": 1772798400, "reporting_category": "dispute", "description": "Chargeback withdrawal",
+  "source": {"id": "dp_dispute_b", "object": "dispute", "charge": "ch_charge_b", "metadata": {}}},
+ {"id": "txn_stripe_fee", "type": "stripe_fee", "currency": "eur", "amount": -7, "fee": 0, "net": -7, "created": 1772884800, "reporting_category": "fee", "description": "Billing: Radar",
   "source": null},
- {"id": "txn_payout", "object": "balance_transaction", "type": "payout", "currency": "eur", "amount": -2065, "fee": 0, "net": -2065, "created": 1773754513, "reporting_category": "payout",
-  "source": {"id": "po_payout_a", "object": "payout", "arrival_date": 1773792000, "metadata": {}}}
+ {"id": "txn_other", "type": "transfer", "currency": "eur", "amount": -50, "fee": 0, "net": -50, "created": 1772971200, "reporting_category": "transfer", "description": "Currency conversion",
+  "source": null},
+ {"id": "txn_payout", "type": "payout", "currency": "eur", "amount": -15, "fee": 0, "net": -15, "created": 1773754513, "reporting_category": "payout", "description": "",
+  "source": {"id": "po_payout_a", "object": "payout", "status": "paid", "arrival_date": 1773792000, "metadata": {}}}
 ]

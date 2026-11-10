@@ -89,12 +89,16 @@ msgid "Date"
 msgstr "Data"
 
 msgctxt "stripe_statement"
-msgid "Type"
-msgstr "Tipo"
+msgid "Category"
+msgstr "Categoria"
 
 msgctxt "stripe_statement"
-msgid "Liberapay transfer / Stripe ID"
-msgstr "Transfer Liberapay / ID Stripe"
+msgid "Reference"
+msgstr "Riferimento"
+
+msgctxt "stripe_statement"
+msgid "Stripe ID"
+msgstr "ID Stripe"
 
 msgctxt "stripe_statement"
 msgid "Gross"
@@ -133,32 +137,60 @@ msgid "Closing balance"
 msgstr "Saldo finale"
 
 msgctxt "stripe_statement"
-msgid "Donations (gross)"
-msgstr "Donazioni (lordo)"
+msgid "Fees"
+msgstr "Commissioni"
 
 msgctxt "stripe_statement"
-msgid "Fees (Stripe and Liberapay)"
-msgstr "Commissioni (Stripe e Liberapay)"
+msgid "Refunds"
+msgstr "Rimborsi"
 
 msgctxt "stripe_statement"
-msgid "Payouts to bank"
+msgid "Payouts"
 msgstr "Bonifici a banca"
 
 msgctxt "stripe_statement"
-msgid "Check: computed closing balance {0} EUR, {1} {2} EUR"
-msgstr "Verifica: saldo finale calcolato {0} EUR, {1} {2} EUR"
+msgid "Charge"
+msgstr "Incasso"
+
+msgctxt "stripe_statement"
+msgid "Refund"
+msgstr "Rimborso"
+
+msgctxt "stripe_statement"
+msgid "Dispute"
+msgstr "Contestazione"
+
+msgctxt "stripe_statement"
+msgid "Stripe fee"
+msgstr "Commissione Stripe"
+
+msgctxt "stripe_statement"
+msgid "Payout"
+msgstr "Bonifico a banca"
+
+msgctxt "stripe_statement"
+msgid "Other"
+msgstr "Altro"
+
+msgctxt "stripe_statement"
+msgid "unclassified movements"
+msgstr "movimenti non classificati"
+
+msgctxt "stripe_statement"
+msgid "Check: computed closing balance {0} {3}, {1} {2} {3}"
+msgstr "Verifica: saldo finale calcolato {0} {3}, {1} {2} {3}"
 
 msgctxt "stripe_statement"
 msgid "matches"
 msgstr "quadra"
 
 msgctxt "stripe_statement"
-msgid "difference {0} EUR"
-msgstr "differenza {0} EUR"
+msgid "difference {0} {1}"
+msgstr "differenza {0} {1}"
 
 msgctxt "stripe_statement"
-msgid "Ledger balance of {0} on {1}: {2} EUR (months not yet closed are not posted)"
-msgstr "Saldo contabile {0} al {1}: {2} EUR (i mesi non ancora chiusi non sono contabilizzati)"
+msgid "Ledger balance of {0} on {1}: {2} {3} (months not yet closed are not posted)"
+msgstr "Saldo contabile {0} al {1}: {2} {3} (i mesi non ancora chiusi non sono contabilizzati)"
 
 msgctxt "stripe_statement"
 msgid "current Stripe balance (API /v1/balance)"
@@ -169,22 +201,6 @@ msgid "computed running balance"
 msgstr "saldo progressivo calcolato"
 
 msgctxt "stripe_statement"
-msgid "Donation"
-msgstr "Donazione"
-
-msgctxt "stripe_statement"
-msgid "Liberapay commission"
-msgstr "Commissione Liberapay"
-
-msgctxt "stripe_statement"
-msgid "Stripe fee"
-msgstr "Commissione Stripe"
-
-msgctxt "stripe_statement"
-msgid "Payout to bank"
-msgstr "Bonifico a banca"
-
-msgctxt "stripe_statement"
 msgid "Attached is the Stripe statement for {0}."
 msgstr "In allegato l'estratto conto Stripe di {0}."
 
@@ -193,8 +209,8 @@ msgid "Stripe opening balance on {0}"
 msgstr "Saldo iniziale Stripe al {0}"
 
 msgctxt "stripe_statement"
-msgid "Liberapay donations via Stripe {0}"
-msgstr "Donazioni Liberapay via Stripe {0}"
+msgid "Stripe {0}: {1}"
+msgstr "Stripe {0}: {1}"
 
 msgctxt "stripe_statement"
 msgid "Stripe payout {0} to bank"
@@ -239,11 +255,35 @@ msgstr "Estratto {0} non inviato: {1}"
 msgid "No recipients configured for the Stripe statement"
 msgstr "Nessun destinatario configurato per l'estratto conto Stripe"
 
-msgid "Liberapay Transfer ID"
-msgstr "ID transfer Liberapay"
+msgid "Reference"
+msgstr "Riferimento"
+
+msgid "Category"
+msgstr "Categoria"
 
 msgid "Stripe Gross Amount"
 msgstr "Importo lordo Stripe"
 
 msgid "Stripe Fee"
 msgstr "Commissione Stripe"
+
+msgid "Stripe Booking Account"
+msgstr "Conto di registrazione Stripe"
+
+msgid "Stripe Cost Center"
+msgstr "Centro di costo Stripe"
+
+msgid "Income Account"
+msgstr "Conto ricavi"
+
+msgid "Fee Account"
+msgstr "Conto commissioni"
+
+msgid "Other Movements Account"
+msgstr "Conto altri movimenti"
+
+msgid "Opening Counter Account"
+msgstr "Contropartita saldo iniziale"
+
+msgid "Classification Rules"
+msgstr "Regole di classificazione"

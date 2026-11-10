@@ -89,11 +89,15 @@ msgid "Date"
 msgstr ""
 
 msgctxt "stripe_statement"
-msgid "Type"
+msgid "Category"
 msgstr ""
 
 msgctxt "stripe_statement"
-msgid "Liberapay transfer / Stripe ID"
+msgid "Reference"
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "Stripe ID"
 msgstr ""
 
 msgctxt "stripe_statement"
@@ -133,19 +137,47 @@ msgid "Closing balance"
 msgstr ""
 
 msgctxt "stripe_statement"
-msgid "Donations (gross)"
+msgid "Fees"
 msgstr ""
 
 msgctxt "stripe_statement"
-msgid "Fees (Stripe and Liberapay)"
+msgid "Refunds"
 msgstr ""
 
 msgctxt "stripe_statement"
-msgid "Payouts to bank"
+msgid "Payouts"
 msgstr ""
 
 msgctxt "stripe_statement"
-msgid "Check: computed closing balance {0} EUR, {1} {2} EUR"
+msgid "Charge"
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "Refund"
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "Dispute"
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "Stripe fee"
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "Payout"
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "Other"
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "unclassified movements"
+msgstr ""
+
+msgctxt "stripe_statement"
+msgid "Check: computed closing balance {0} {3}, {1} {2} {3}"
 msgstr ""
 
 msgctxt "stripe_statement"
@@ -153,11 +185,11 @@ msgid "matches"
 msgstr ""
 
 msgctxt "stripe_statement"
-msgid "difference {0} EUR"
+msgid "difference {0} {1}"
 msgstr ""
 
 msgctxt "stripe_statement"
-msgid "Ledger balance of {0} on {1}: {2} EUR (months not yet closed are not posted)"
+msgid "Ledger balance of {0} on {1}: {2} {3} (months not yet closed are not posted)"
 msgstr ""
 
 msgctxt "stripe_statement"
@@ -169,22 +201,6 @@ msgid "computed running balance"
 msgstr ""
 
 msgctxt "stripe_statement"
-msgid "Donation"
-msgstr ""
-
-msgctxt "stripe_statement"
-msgid "Liberapay commission"
-msgstr ""
-
-msgctxt "stripe_statement"
-msgid "Stripe fee"
-msgstr ""
-
-msgctxt "stripe_statement"
-msgid "Payout to bank"
-msgstr ""
-
-msgctxt "stripe_statement"
 msgid "Attached is the Stripe statement for {0}."
 msgstr ""
 
@@ -193,7 +209,7 @@ msgid "Stripe opening balance on {0}"
 msgstr ""
 
 msgctxt "stripe_statement"
-msgid "Liberapay donations via Stripe {0}"
+msgid "Stripe {0}: {1}"
 msgstr ""
 
 msgctxt "stripe_statement"
@@ -239,11 +255,35 @@ msgstr ""
 msgid "No recipients configured for the Stripe statement"
 msgstr ""
 
-msgid "Liberapay Transfer ID"
+msgid "Reference"
+msgstr ""
+
+msgid "Category"
 msgstr ""
 
 msgid "Stripe Gross Amount"
 msgstr ""
 
 msgid "Stripe Fee"
+msgstr ""
+
+msgid "Stripe Booking Account"
+msgstr ""
+
+msgid "Stripe Cost Center"
+msgstr ""
+
+msgid "Income Account"
+msgstr ""
+
+msgid "Fee Account"
+msgstr ""
+
+msgid "Other Movements Account"
+msgstr ""
+
+msgid "Opening Counter Account"
+msgstr ""
+
+msgid "Classification Rules"
 msgstr ""

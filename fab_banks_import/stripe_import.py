@@ -8,32 +8,48 @@ import urllib.request
 from calendar import monthrange
 from collections import Counter
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
 import frappe
 from frappe import _
-from frappe.utils import flt, fmt_money, formatdate, getdate, now_datetime, nowdate
+from frappe.utils import cint, escape_html, flt, fmt_money, formatdate, getdate, now_datetime, nowdate
 from frappe.utils.data import get_system_timezone
 
 SETTINGS_DOCTYPE = "Stripe Import Settings"
 STRIPE_API = "https://api.stripe.com/v1/"
 STRIPE_TIMEOUT = 30
 PAYOUT_MATCH_DAYS = 5
-LEDGER_LANGUAGE = "it"
+REFUND_AS_FEE = "Fee"
 
-# Liberapay takes its commission by reversing part of the donation, so
-# refunds and adjustments are an expense, never a lost donation
-CATEGORY_BY_TYPE = {
-	"payment": "donation",
-	"charge": "donation",
-	"payment_refund": "commission",
-	"refund": "commission",
-	"adjustment": "commission",
-	"stripe_fee": "stripe_fee",
+# what a balance transaction does to the ledger; anything missing here goes
+# to the "other" account and is flagged in the sync log
+KIND_BY_TYPE = {
+	"charge": "charge",
+	"payment": "charge",
+	"refund": "refund",
+	"payment_refund": "refund",
+	"refund_failure": "refund",
+	"payment_failure_refund": "refund",
+	"stripe_fee": "fee",
+	"stripe_fx_fee": "fee",
+	"tax_fee": "fee",
+	"adjustment": "fee",
 	"payout": "payout",
+	"payout_failure": "payout",
+	"payout_cancel": "payout",
+}
+PAYOUT_TYPES = [t for t, kind in KIND_BY_TYPE.items() if kind == "payout"]
+DISPUTE_CATEGORIES = {"dispute", "dispute_reversal"}
+KIND_LABELS = {
+	"charge": "Charge",
+	"refund": "Refund",
+	"dispute": "Dispute",
+	"fee": "Stripe fee",
+	"payout": "Payout",
+	"other": "Other",
 }
 
 
@@ -41,121 +57,214 @@ CATEGORY_BY_TYPE = {
 class StripeMovement:
 	id: str
 	type: str
-	category: str
+	kind: str
 	posting_date: date
 	amount: float
 	fee: float
 	net: float
+	currency: str = ""
 	source_id: str = ""
 	charge_id: str = ""
-	liberapay_transfer_id: str = ""
+	description: str = ""
+	context: dict[str, Any] = field(default_factory=dict)
+	reference: str = ""
+	category: str = ""
+	account: str = ""
+	cost_center: str = ""
+	matched: bool = False
 	payout_arrival_date: date | None = None
 	payout_status: str = ""
 
 
 @dataclass(slots=True)
-class MonthTotals:
-	donations: float = 0.0
-	donation_fees: float = 0.0
-	commissions: float = 0.0
-	stripe_fees: float = 0.0
+class Defaults:
+	income_account: str
+	fee_account: str
+	other_account: str = ""
+	cost_center: str = ""
+
+
+@dataclass(slots=True)
+class MonthLines:
+	lines: dict[tuple[str, str], float] = field(default_factory=dict)
 	deposits: float = 0.0
 	withdrawals: float = 0.0
+	categories: list[str] = field(default_factory=list)
 	count: int = 0
-
-	@property
-	def charges(self) -> float:
-		return round(self.donation_fees + self.commissions + self.stripe_fees, 2)
 
 	@property
 	def net(self) -> float:
 		return round(self.deposits - self.withdrawals, 2)
-
-	def is_balanced(self) -> bool:
-		return abs(round(self.donations - self.charges - self.net, 2)) <= 0.005
 
 
 def cents(value: int | None) -> float:
 	return round((value or 0) / 100, 2)
 
 
-def parse_balance_transaction(raw: dict[str, Any], tz: ZoneInfo) -> StripeMovement:
-	"""Turn one /v1/balance_transactions row (expanded source) into a movement.
+def charge_context(source: dict[str, Any] | None) -> dict[str, Any]:
+	"""What rules can look at on a charge: metadata, description, customer."""
+	if not isinstance(source, dict):
+		return {}
+	customer = source.get("customer")
+	email = (source.get("billing_details") or {}).get("email") or source.get("receipt_email") or ""
+	if isinstance(customer, dict):
+		email = email or customer.get("email") or ""
+		customer = customer.get("id")
+	return {
+		"metadata": source.get("metadata") or {},
+		"description": source.get("description") or "",
+		"customer": customer or "",
+		"email": email,
+	}
 
-	Unknown types and non EUR rows raise: a new kind of money flow must be
-	mapped by hand before it reaches the ledger.
-	"""
-	if (raw.get("currency") or "").lower() != "eur":
-		raise ValueError(f"{raw.get('id')}: unsupported currency {raw.get('currency')!r}")
-	category = CATEGORY_BY_TYPE.get(raw.get("type"))
-	if not category:
-		raise ValueError(f"{raw.get('id')}: unmapped balance transaction type {raw.get('type')!r}")
+
+def movement_kind(raw: dict[str, Any]) -> str:
+	source = raw.get("source")
+	if raw.get("reporting_category") in DISPUTE_CATEGORIES or (
+		isinstance(source, dict) and source.get("object") == "dispute"
+	):
+		return "dispute"
+	return KIND_BY_TYPE.get(raw.get("type"), "other")
+
+
+def parse_balance_transaction(raw: dict[str, Any], tz: ZoneInfo) -> StripeMovement:
+	"""Turn one /v1/balance_transactions row (expanded source) into a movement."""
 	amount, fee, net = cents(raw.get("amount")), cents(raw.get("fee")), cents(raw.get("net"))
 	if abs(round(amount - fee - net, 2)) > 0.005:
 		raise ValueError(f"{raw['id']}: amount {amount} - fee {fee} != net {net}")
+	kind = movement_kind(raw)
 	source = raw.get("source")
 	movement = StripeMovement(
 		id=raw["id"],
-		type=raw["type"],
-		category=category,
+		type=raw.get("type") or "",
+		kind=kind,
 		posting_date=datetime.fromtimestamp(raw["created"], tz).date(),
 		amount=amount,
 		fee=fee,
 		net=net,
+		currency=(raw.get("currency") or "").upper(),
+		description=raw.get("description") or "",
 	)
 	if isinstance(source, dict):
 		movement.source_id = source.get("id") or ""
 		charge = source.get("charge")
 		movement.charge_id = (charge.get("id") if isinstance(charge, dict) else charge) or ""
-		movement.liberapay_transfer_id = str(
-			(source.get("metadata") or {}).get("liberapay_transfer_id") or ""
-		)
-		if category == "payout":
+		if kind == "charge":
+			movement.context = charge_context(source)
+		elif isinstance(charge, dict):
+			movement.context = charge_context(charge)
+		if kind == "payout":
 			movement.payout_status = source.get("status") or ""
-		if category == "payout" and source.get("arrival_date"):
-			# arrival_date is midnight UTC of the bank value date
-			movement.payout_arrival_date = datetime.fromtimestamp(source["arrival_date"], UTC).date()
+			if source.get("arrival_date"):
+				# arrival_date is midnight UTC of the bank value date
+				movement.payout_arrival_date = datetime.fromtimestamp(source["arrival_date"], UTC).date()
 	elif isinstance(source, str):
 		movement.source_id = source
-	if category == "payout" and not movement.payout_arrival_date:
+	if kind == "payout" and not movement.payout_arrival_date:
 		raise ValueError(f"{raw['id']}: payout without arrival date, expand the source")
 	return movement
 
 
-def link_reversals(movements: list[StripeMovement]) -> None:
-	"""Copy the Liberapay transfer id of a donation onto its reversals."""
-	by_charge = {m.source_id: m.liberapay_transfer_id for m in movements if m.category == "donation"}
-	for m in movements:
-		if m.category == "commission" and not m.liberapay_transfer_id and m.charge_id:
-			m.liberapay_transfer_id = by_charge.get(m.charge_id, "")
+def sorted_rules(rows: list[Any]) -> list[Any]:
+	return sorted(rows or [], key=lambda r: (cint(r.get("priority")), cint(r.get("idx"))))
 
 
-def month_totals(movements: list[StripeMovement]) -> MonthTotals:
-	"""Aggregate the non payout movements of one month for its Journal Entry."""
-	totals = MonthTotals()
+def rule_matches(rule: Any, movement_type: str, kind: str, context: dict[str, Any]) -> bool:
+	"""Every condition set on the rule must hold; an empty condition is ignored."""
+	if rule.get("movement_type") and rule.get("movement_type") not in (movement_type, kind):
+		return False
+	metadata = context.get("metadata") or {}
+	key = rule.get("metadata_key")
+	if key:
+		if key not in metadata:
+			return False
+		if rule.get("metadata_value") and str(metadata[key]) != rule.get("metadata_value"):
+			return False
+	text = rule.get("description_contains")
+	if text and text.lower() not in (context.get("description") or "").lower():
+		return False
+	customer = (rule.get("customer") or "").strip().lower()
+	if customer and customer not in (
+		str(context.get("customer") or "").lower(),
+		str(context.get("email") or "").lower(),
+	):
+		return False
+	return True
+
+
+def first_rule(rules: list[Any], movement_type: str, kind: str, context: dict[str, Any]) -> Any | None:
+	return next((r for r in rules if rule_matches(r, movement_type, kind, context)), None)
+
+
+def classify(
+	movements: list[StripeMovement],
+	rules: list[Any],
+	defaults: Defaults,
+	charges: dict[str, tuple[str, dict[str, Any]]] | None = None,
+) -> None:
+	"""Set reference, category, account and cost center on each movement.
+
+	Refunds and disputes follow the rule of their original charge, looked up
+	by charge id in the movements themselves or in `charges` (id -> (type,
+	context)) for charges created before the import window.
+	"""
+	rules = sorted_rules(rules)
+	known = dict(charges or {})
+	known.update({m.source_id: (m.type, m.context) for m in movements if m.kind == "charge" and m.source_id})
 	for m in movements:
-		if m.category == "payout":
+		if m.kind == "payout":
 			continue
-		totals.count += 1
-		if m.category == "donation":
-			totals.donations += m.amount
-			totals.donation_fees += m.fee
-		elif m.category == "commission":
-			totals.commissions -= m.net
-		elif m.category == "stripe_fee":
-			totals.stripe_fees -= m.net
-		if m.net > 0:
-			totals.deposits += m.net
+		if m.kind in ("refund", "dispute"):
+			charge_type, context = known.get(m.charge_id, ("", m.context))
+			rule = first_rule(rules, charge_type or m.type, "charge" if charge_type else m.kind, context)
 		else:
-			totals.withdrawals -= m.net
-	for attr in ("donations", "donation_fees", "commissions", "stripe_fees", "deposits", "withdrawals"):
-		setattr(totals, attr, round(getattr(totals, attr), 2))
-	if not totals.is_balanced():
-		raise ValueError(
-			f"month totals do not balance: donations {totals.donations} - charges {totals.charges}"
-			f" != net {totals.net}"
-		)
-	return totals
+			context = m.context or {"description": m.description}
+			rule = first_rule(rules, m.type, m.kind, context)
+		m.matched = rule is not None
+		m.category = (rule.get("label") if rule else "") or ""
+		m.cost_center = (rule.get("cost_center") if rule else "") or defaults.cost_center
+		key = rule.get("reference_key") if rule else ""
+		m.reference = str((context.get("metadata") or {}).get(key) or "") if key else ""
+		m.reference = m.reference or context.get("description") or m.description
+		income = (rule.get("income_account") if rule else "") or defaults.income_account
+		if m.kind == "charge":
+			m.account = income
+		elif m.kind == "refund":
+			refund_as_fee = rule and rule.get("refund_treatment") == REFUND_AS_FEE
+			m.account = defaults.fee_account if refund_as_fee else income
+		elif m.kind == "dispute":
+			m.account = income
+		elif m.kind == "fee":
+			m.account = defaults.fee_account
+		else:
+			m.account = defaults.other_account
+
+
+def month_lines(movements: list[StripeMovement], fee_account: str) -> MonthLines:
+	"""Journal lines of one month: gross per (account, cost center), fees, net."""
+	month = MonthLines()
+	for m in movements:
+		if m.kind == "payout":
+			continue
+		if not m.account:
+			raise ValueError(f"{m.id}: no account to book {m.type} on")
+		month.count += 1
+		key = (m.account, m.cost_center)
+		month.lines[key] = month.lines.get(key, 0.0) - m.amount
+		if m.fee:
+			fee_key = (fee_account, m.cost_center)
+			month.lines[fee_key] = month.lines.get(fee_key, 0.0) + m.fee
+		if m.net > 0:
+			month.deposits += m.net
+		else:
+			month.withdrawals -= m.net
+		if m.category and m.category not in month.categories:
+			month.categories.append(m.category)
+	month.lines = {k: round(v, 2) for k, v in month.lines.items() if round(v, 2)}
+	month.deposits, month.withdrawals = round(month.deposits, 2), round(month.withdrawals, 2)
+	if abs(round(sum(month.lines.values()) + month.net, 2)) > 0.005:
+		raise ValueError(f"month lines do not balance: {month.lines} against net {month.net}")
+	return month
 
 
 def compute_opening_balance(current_balance: float, movements: list[StripeMovement]) -> float:
@@ -200,27 +309,46 @@ def pick_payout_match(
 	return matches[0][1]
 
 
+def movement_label(m: StripeMovement) -> str:
+	return m.category or statement_text(KIND_LABELS.get(m.kind, "Other"))
+
+
 def statement_rows(
-	opening: float, movements: list[StripeMovement]
-) -> tuple[list[dict[str, Any]], dict[str, float]]:
-	"""Running balance rows and totals for the accountant statement."""
+	opening: float, movements: list[StripeMovement], fee_account: str
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+	"""Running balance rows and totals for the statement.
+
+	Totals: gross per category, fees (fee column plus anything booked on the
+	fee account), refunds (negative gross on an income account), payouts.
+	"""
 	rows = []
 	balance = opening
-	totals = {"donations": 0.0, "charges": 0.0, "payouts": 0.0, "net": 0.0}
+	categories: dict[str, float] = {}
+	fees = refunds = payouts = 0.0
 	for m in sorted(movements, key=lambda m: (m.posting_date, m.id)):
 		balance = round(balance + m.net, 2)
 		rows.append({"movement": m, "balance": balance})
-		if m.category == "donation":
-			totals["donations"] += m.amount
-			totals["charges"] += m.fee
-		elif m.category == "payout":
-			totals["payouts"] -= m.net
+		fees += m.fee
+		if m.kind == "payout":
+			payouts -= m.amount
+		elif m.account == fee_account:
+			fees -= m.amount
+		elif m.kind in ("refund", "dispute"):
+			refunds -= m.amount
 		else:
-			totals["charges"] -= m.net
-		totals["net"] += m.net
-	totals = {k: round(v, 2) for k, v in totals.items()}
-	totals["opening"] = round(opening, 2)
-	totals["closing"] = balance
+			label = movement_label(m)
+			categories[label] = categories.get(label, 0.0) + m.amount
+	totals = {
+		"categories": {k: round(v, 2) for k, v in categories.items()},
+		"fees": round(fees, 2),
+		"refunds": round(refunds, 2),
+		"payouts": round(payouts, 2),
+		"opening": round(opening, 2),
+		"closing": balance,
+	}
+	computed = round(opening + sum(categories.values()) - fees - refunds - payouts, 2)
+	if abs(round(computed - balance, 2)) > 0.005:
+		raise ValueError(f"statement totals {computed} do not add up to the closing balance {balance}")
 	return rows, totals
 
 
@@ -247,16 +375,10 @@ def stripe_get(api_key: str, path: str, params: list[tuple[str, str]] | None = N
 		frappe.throw(_("Stripe API {0} failed with HTTP {1}: {2}").format(path, e.code, message))
 
 
-def fetch_balance(api_key: str) -> float:
+def fetch_balance(api_key: str, currency: str) -> float:
 	balance = stripe_get(api_key, "balance")
-	total = 0.0
-	for row in [*balance.get("available", []), *balance.get("pending", [])]:
-		if row["currency"].lower() != "eur":
-			if row["amount"]:
-				frappe.throw(_("Stripe holds a {0} balance: only EUR is supported").format(row["currency"]))
-			continue
-		total += cents(row["amount"])
-	return round(total, 2)
+	rows = [*balance.get("available", []), *balance.get("pending", [])]
+	return round(sum(cents(r["amount"]) for r in rows if r["currency"].upper() == currency), 2)
 
 
 def fetch_balance_transactions(api_key: str, created_from: int) -> list[dict[str, Any]]:
@@ -273,24 +395,46 @@ def fetch_balance_transactions(api_key: str, created_from: int) -> list[dict[str
 		after = page["data"][-1]["id"]
 
 
-def fetch_movements(api_key: str, start_date: date, tz: ZoneInfo) -> tuple[list[StripeMovement], float]:
-	"""Movements since start_date and the balance they lead to.
+def fetch_movements(
+	api_key: str, start_date: date, tz: ZoneInfo, currency: str
+) -> tuple[list[StripeMovement], float, list[str]]:
+	"""Movements since start_date in the account currency and the balance they lead to.
 
 	The balance is read around the list; if it moved while paging, read again
 	so the invariant is never checked against a half updated pair.
 	"""
 	created_from = int(datetime.combine(start_date, datetime.min.time(), tz).timestamp())
 	for _attempt in range(3):
-		before = fetch_balance(api_key)
+		before = fetch_balance(api_key, currency)
 		raw = fetch_balance_transactions(api_key, created_from)
-		after = fetch_balance(api_key)
+		after = fetch_balance(api_key, currency)
 		if before == after:
 			break
 	else:
 		frappe.throw(_("Stripe balance kept changing during the sync, retry later"))
-	movements = sorted((parse_balance_transaction(r, tz) for r in raw), key=lambda m: (m.posting_date, m.id))
-	link_reversals(movements)
-	return movements, after
+	movements = [parse_balance_transaction(r, tz) for r in raw]
+	skipped = [m.id for m in movements if m.currency != currency]
+	movements = sorted((m for m in movements if m.currency == currency), key=lambda m: (m.posting_date, m.id))
+	return movements, after, skipped
+
+
+def fetch_missing_charges(
+	api_key: str, movements: list[StripeMovement], pending: set[str], flagged: list[str]
+) -> dict[str, tuple[str, dict]]:
+	"""Charges created before the window whose reversals still need classifying."""
+	known = {m.source_id for m in movements if m.kind == "charge"}
+	missing = {
+		m.charge_id for m in movements if m.kind in ("refund", "dispute") and m.charge_id and m.id in pending
+	} - known
+	charges = {}
+	for charge_id in sorted(missing):
+		try:
+			context = charge_context(stripe_get(api_key, f"charges/{charge_id}"))
+		except frappe.ValidationError:
+			flagged.append(f"{charge_id} charge not readable, reversal left unclassified")
+			continue
+		charges[charge_id] = ("payment" if charge_id.startswith("py_") else "charge", context)
+	return charges
 
 
 # --------------------------------------------------------------------------
@@ -299,22 +443,21 @@ def fetch_movements(api_key: str, start_date: date, tz: ZoneInfo) -> tuple[list[
 
 def get_settings():
 	settings = frappe.get_single(SETTINGS_DOCTYPE)
-	missing = [
-		field
-		for field in (
-			"company",
-			"bank_account",
-			"payout_bank_account",
-			"income_account",
-			"fee_account",
-			"clearing_account",
-			"start_date",
-		)
-		if not settings.get(field)
-	]
+	required = ("company", "bank_account", "income_account", "fee_account", "clearing_account", "start_date")
+	missing = [f for f in required if not settings.get(f)]
 	if missing:
 		frappe.throw(_("Stripe Import Settings incomplete: {0}").format(", ".join(missing)))
 	return settings
+
+
+def settings_defaults(settings) -> Defaults:
+	return Defaults(
+		income_account=settings.income_account,
+		fee_account=settings.fee_account,
+		other_account=settings.other_account or "",
+		cost_center=settings.default_cost_center
+		or frappe.get_cached_value("Company", settings.company, "cost_center"),
+	)
 
 
 def bank_gl_account(bank_account: str) -> str:
@@ -337,14 +480,33 @@ def _sync(settings) -> dict[str, Any]:
 	api_key = settings.get_password("api_key")
 	tz = ZoneInfo(get_system_timezone())
 	start_date = getdate(settings.start_date)
-	movements, balance = fetch_movements(api_key, start_date, tz)
+	stripe_account = bank_gl_account(settings.bank_account)
+	currency = frappe.get_cached_value("Account", stripe_account, "account_currency")
+	movements, balance, skipped = fetch_movements(api_key, start_date, tz, currency)
 	if any(m.posting_date < start_date for m in movements):
 		frappe.throw(_("Stripe returned movements before the start date"))
+	company_currency = frappe.get_cached_value("Company", settings.company, "default_currency")
+	payout_currency = settings.payout_bank_account and frappe.get_cached_value(
+		"Account", bank_gl_account(settings.payout_bank_account), "account_currency"
+	)
+	if currency != company_currency or (payout_currency and payout_currency != currency):
+		frappe.throw(_("The Stripe account, its payout bank and the company must share one currency"))
+	flagged: list[str] = []
+	pending = movements_to_classify(movements)
+	charges = fetch_missing_charges(api_key, movements, pending, flagged)
+	classify(movements, settings.get("rules"), settings_defaults(settings), charges)
+	other = [m for m in movements if m.kind == "other"]
+	if other and not settings.other_account:
+		frappe.throw(_("Set the Other Movements Account: Stripe returned {0}").format(other[0].type))
 	results: dict[str, Any] = {
 		"stripe_balance": balance,
 		"movements": len(movements),
 		"by_type": dict(Counter(m.type for m in movements)),
+		"unclassified": sum(1 for m in movements if m.kind != "payout" and not m.matched),
+		"flagged": [f"{m.id} {m.type}" for m in other] + flagged,
+		"skipped_other_currency": skipped,
 		"transactions_created": 0,
+		"transactions_classified": 0,
 		"transactions_skipped": 0,
 	}
 	results["opening"] = ensure_opening_entry(settings, movements, balance)
@@ -352,10 +514,26 @@ def _sync(settings) -> dict[str, Any]:
 		results[f"transactions_{upsert_bank_transaction(settings, m)}"] += 1
 	check_ledger_side(settings, start_date, balance)
 	results["months"] = post_closed_months(settings)
-	results["payouts"] = [ensure_payout(settings, m) for m in movements if m.category == "payout"]
+	results["payouts"] = [ensure_payout(settings, m) for m in movements if m.kind == "payout"]
 	settings.db_set("last_sync", now_datetime())
 	settings.db_set("last_sync_log", json.dumps(results, indent=1, default=str))
 	return results
+
+
+def movements_to_classify(movements: list[StripeMovement]) -> set[str]:
+	"""Ids not imported yet or imported before classification existed."""
+	done = set(
+		frappe.get_all(
+			"Bank Transaction",
+			filters={
+				"transaction_id": ["in", [m.id for m in movements] or [""]],
+				"docstatus": ["<", 2],
+				"fab_stripe_kind": ["is", "set"],
+			},
+			pluck="transaction_id",
+		)
+	)
+	return {m.id for m in movements} - done
 
 
 def check_ledger_side(settings, start_date: date, balance: float) -> None:
@@ -387,7 +565,7 @@ def ensure_opening_entry(settings, movements: list[StripeMovement], balance: flo
 	posting_date = getdate(settings.start_date) - timedelta(days=1)
 	journal_entry = None
 	if opening:
-		stripe_account = bank_gl_account(settings.bank_account)
+		cost_center = frappe.get_cached_value("Company", settings.company, "cost_center")
 		je = frappe.get_doc(
 			{
 				"doctype": "Journal Entry",
@@ -396,8 +574,8 @@ def ensure_opening_entry(settings, movements: list[StripeMovement], balance: flo
 				"posting_date": posting_date,
 				"user_remark": ledger_text("Stripe opening balance on {0}", formatdate(posting_date)),
 				"accounts": [
-					journal_line(stripe_account, opening, settings.company),
-					journal_line(settings.clearing_account, -opening, settings.company),
+					journal_line(bank_gl_account(settings.bank_account), opening, cost_center),
+					journal_line(settings.clearing_account, -opening, cost_center),
 				],
 			}
 		)
@@ -410,30 +588,60 @@ def ensure_opening_entry(settings, movements: list[StripeMovement], balance: flo
 	return {"balance": opening, "journal_entry": journal_entry, "created": bool(journal_entry)}
 
 
-def journal_line(account: str, signed_amount: float, company: str) -> dict[str, Any]:
+def journal_line(account: str, signed_amount: float, cost_center: str) -> dict[str, Any]:
 	"""A positive amount debits the account, a negative one credits it."""
 	return {
 		"account": account,
 		"debit_in_account_currency": signed_amount if signed_amount > 0 else 0,
 		"credit_in_account_currency": -signed_amount if signed_amount < 0 else 0,
-		"cost_center": frappe.get_cached_value("Company", company, "cost_center"),
+		"cost_center": cost_center,
 	}
 
 
 def bank_transaction_description(m: StripeMovement) -> str:
 	parts = [f"Stripe {m.type}"]
-	if m.liberapay_transfer_id:
-		parts.append(f"Liberapay transfer {m.liberapay_transfer_id}")
-	if m.category == "payout" and m.payout_arrival_date:
+	if m.category:
+		parts.append(m.category)
+	if m.reference:
+		parts.append(m.reference)
+	if m.kind == "payout" and m.payout_arrival_date:
 		parts.append(f"payout {m.source_id} arriving {m.payout_arrival_date.isoformat()}")
 	parts.append(f"gross {m.amount:.2f} fee {m.fee:.2f} net {m.net:.2f}")
 	return " | ".join(parts)
 
 
+def classification_fields(m: StripeMovement) -> dict[str, Any]:
+	return {
+		"fab_stripe_reference": m.reference[:140],
+		"fab_stripe_category": m.category,
+		"fab_stripe_kind": m.kind,
+		"fab_stripe_account": m.account or None,
+		"fab_stripe_cost_center": m.cost_center or None,
+	}
+
+
 def upsert_bank_transaction(settings, m: StripeMovement) -> str:
-	if frappe.db.exists("Bank Transaction", {"transaction_id": m.id, "docstatus": ["<", 2]}):
-		return "skipped"
-	if not m.net:
+	existing = frappe.db.get_value(
+		"Bank Transaction",
+		{"transaction_id": m.id, "docstatus": ["<", 2]},
+		["name", "fab_stripe_kind", "fab_stripe_reference", "fab_stripe_account"],
+		as_dict=True,
+	)
+	if existing:
+		if existing.fab_stripe_kind:
+			return "skipped"
+		# rows imported before classification existed: fill the fields only,
+		# amounts and their reconciliation stay as they are
+		fields = classification_fields(m)
+		if existing.fab_stripe_reference:
+			fields.pop("fab_stripe_reference")
+		if existing.fab_stripe_account:
+			# classified by an earlier sync: keep what was booked
+			for fieldname in ("fab_stripe_category", "fab_stripe_account", "fab_stripe_cost_center"):
+				fields.pop(fieldname)
+		frappe.db.set_value("Bank Transaction", existing.name, fields, update_modified=False)
+		return "classified"
+	if not (m.net or m.amount or m.fee):
 		return "skipped"
 	doc = frappe.get_doc(
 		{
@@ -441,16 +649,16 @@ def upsert_bank_transaction(settings, m: StripeMovement) -> str:
 			"date": m.posting_date,
 			"bank_account": settings.bank_account,
 			"company": settings.company,
-			"currency": "EUR",
+			"currency": m.currency,
 			"deposit": m.net if m.net > 0 else 0,
 			"withdrawal": -m.net if m.net < 0 else 0,
-			"description": bank_transaction_description(m),
+			"description": bank_transaction_description(m)[:500],
 			"reference_number": m.source_id,
 			"transaction_id": m.id,
 			"transaction_type": m.type,
 			"fab_stripe_gross": m.amount,
 			"fab_stripe_fee": m.fee,
-			"fab_liberapay_transfer_id": m.liberapay_transfer_id,
+			**classification_fields(m),
 		}
 	)
 	doc.flags.ignore_permissions = True
@@ -459,7 +667,9 @@ def upsert_bank_transaction(settings, m: StripeMovement) -> str:
 	return "created"
 
 
-def bank_transaction_movements(bank_account: str, from_date: date, to_date: date) -> list[StripeMovement]:
+def bank_transaction_movements(
+	bank_account: str, from_date: date, to_date: date, defaults: Defaults
+) -> list[StripeMovement]:
 	"""Rebuild movements from the imported Bank Transactions (no API call)."""
 	rows = frappe.get_all(
 		"Bank Transaction",
@@ -474,28 +684,35 @@ def bank_transaction_movements(bank_account: str, from_date: date, to_date: date
 			"reference_number",
 			"fab_stripe_gross",
 			"fab_stripe_fee",
-			"fab_liberapay_transfer_id",
+			"fab_stripe_reference",
+			"fab_stripe_category",
+			"fab_stripe_account",
+			"fab_stripe_cost_center",
+			"fab_stripe_kind",
 		],
 		order_by="date asc, transaction_id asc",
 	)
 	movements = []
 	for row in rows:
-		category = CATEGORY_BY_TYPE.get(row.transaction_type)
-		if not category:
+		kind = row.fab_stripe_kind or KIND_BY_TYPE.get(row.transaction_type, "other")
+		if kind != "payout" and not row.fab_stripe_account:
 			frappe.throw(
-				_("Bank Transaction {0} has unmapped Stripe type {1}").format(row.name, row.transaction_type)
+				_("Bank Transaction {0} is not classified yet: run the Stripe sync").format(row.name)
 			)
 		movements.append(
 			StripeMovement(
 				id=row.transaction_id,
 				type=row.transaction_type,
-				category=category,
+				kind=kind,
 				posting_date=getdate(row.date),
 				amount=flt(row.fab_stripe_gross),
 				fee=flt(row.fab_stripe_fee),
 				net=round(flt(row.deposit) - flt(row.withdrawal), 2),
 				source_id=row.reference_number or "",
-				liberapay_transfer_id=row.fab_liberapay_transfer_id or "",
+				reference=row.fab_stripe_reference or "",
+				category=row.fab_stripe_category or "",
+				account=row.fab_stripe_account or "",
+				cost_center=row.fab_stripe_cost_center or defaults.cost_center,
 			)
 		)
 	return movements
@@ -521,12 +738,15 @@ def month_reference(year: int, month: int) -> str:
 def ensure_month_entry(settings, year: int, month: int) -> dict[str, Any] | None:
 	"""One Journal Entry per closed month, reconciled against its Bank Transactions."""
 	first, last = month_bounds(year, month)
+	defaults = settings_defaults(settings)
 	movements = [
-		m for m in bank_transaction_movements(settings.bank_account, first, last) if m.category != "payout"
+		m
+		for m in bank_transaction_movements(settings.bank_account, first, last, defaults)
+		if m.kind != "payout"
 	]
 	if not movements:
 		return None
-	totals = month_totals(movements)
+	totals = month_lines(movements, settings.fee_account)
 	stripe_account = bank_gl_account(settings.bank_account)
 	reference = month_reference(year, month)
 	je_name = frappe.db.get_value(
@@ -549,14 +769,15 @@ def ensure_month_entry(settings, year: int, month: int) -> dict[str, Any] | None
 				)
 			)
 	else:
+		company_cc = frappe.get_cached_value("Company", settings.company, "cost_center")
+		lines = [journal_line(account, amount, cc) for (account, cc), amount in sorted(totals.lines.items())]
 		# deposits and withdrawals stay on separate lines: bank reconciliation
 		# allocates the sum of the absolute bank GL amounts across the rows
-		lines = [
-			journal_line(settings.income_account, -totals.donations, settings.company),
-			journal_line(settings.fee_account, totals.charges, settings.company),
-			journal_line(stripe_account, totals.deposits, settings.company),
-			journal_line(stripe_account, -totals.withdrawals, settings.company),
-		]
+		if totals.deposits:
+			lines.append(journal_line(stripe_account, totals.deposits, company_cc))
+		if totals.withdrawals:
+			lines.append(journal_line(stripe_account, -totals.withdrawals, company_cc))
+		labels = ", ".join(totals.categories) or statement_text("unclassified movements")
 		je = frappe.get_doc(
 			{
 				"doctype": "Journal Entry",
@@ -565,12 +786,8 @@ def ensure_month_entry(settings, year: int, month: int) -> dict[str, Any] | None
 				"posting_date": last,
 				"cheque_no": reference,
 				"cheque_date": last,
-				"user_remark": ledger_text("Liberapay donations via Stripe {0}", f"{month:02d}/{year}"),
-				"accounts": [
-					line
-					for line in lines
-					if line["debit_in_account_currency"] or line["credit_in_account_currency"]
-				],
+				"user_remark": ledger_text("Stripe {0}: {1}", f"{month:02d}/{year}", labels),
+				"accounts": lines,
 			}
 		)
 		je.flags.ignore_permissions = True
@@ -582,8 +799,7 @@ def ensure_month_entry(settings, year: int, month: int) -> dict[str, Any] | None
 		"month": f"{year}-{month:02d}",
 		"journal_entry": je_name,
 		"created": created,
-		"donations": totals.donations,
-		"charges": totals.charges,
+		"lines": {f"{a} / {c}": v for (a, c), v in sorted(totals.lines.items())},
 		"net": totals.net,
 		"reconciled": reconciled,
 	}
@@ -619,7 +835,7 @@ def reconcile_month(bank_account: str, first: date, last: date, je_name: str) ->
 			"bank_account": bank_account,
 			"docstatus": 1,
 			"date": ["between", [first, last]],
-			"transaction_type": ["!=", "payout"],
+			"transaction_type": ["not in", PAYOUT_TYPES],
 			"unallocated_amount": [">", 0],
 		},
 		pluck="name",
@@ -632,6 +848,13 @@ def ensure_payout(settings, m: StripeMovement) -> dict[str, Any]:
 	"""Internal transfer Stripe -> payout bank, reconciled on both sides."""
 	amount = -m.net
 	result: dict[str, Any] = {"payout": m.source_id, "amount": amount, "arrival_date": m.payout_arrival_date}
+	if not settings.payout_bank_account:
+		result["pending"] = "no payout bank account configured"
+		return result
+	if m.type != "payout":
+		# a failed or cancelled payout returns money its payout never took
+		result["pending"] = f"{m.type}: offsets its payout, nothing to book"
+		return result
 	if m.payout_status != "paid" or m.payout_arrival_date > getdate(nowdate()):
 		# in transit or failed: the bank side does not exist yet
 		result["pending"] = m.payout_status or "unknown"
@@ -794,21 +1017,23 @@ def recipients_by_language(settings) -> dict[str, list[str]]:
 	return groups
 
 
-def statement_email_body(label: str, totals: dict[str, float]) -> str:
+def statement_email_body(label: str, totals: dict[str, Any], currency: str) -> str:
 	rows = [
 		(statement_text("Opening balance"), totals["opening"]),
-		(statement_text("Donations (gross)"), totals["donations"]),
-		(statement_text("Fees (Stripe and Liberapay)"), -totals["charges"]),
-		(statement_text("Payouts to bank"), -totals["payouts"]),
+		*totals["categories"].items(),
+		(statement_text("Fees"), -totals["fees"]),
+		(statement_text("Refunds"), -totals["refunds"]),
+		(statement_text("Payouts"), -totals["payouts"]),
 	]
 	lines = "".join(
-		f"<tr><td>{text}</td><td align='right'>{format_eur(value)} EUR</td></tr>" for text, value in rows
+		f"<tr><td>{escape_html(text)}</td><td align='right'>{format_amount(value)} {currency}</td></tr>"
+		for text, value in rows
 	)
 	closing = statement_text("Closing balance")
 	return (
 		f"<p>{statement_text('Attached is the Stripe statement for {0}.').format(label)}</p>"
 		f"<table>{lines}<tr><td><b>{closing}</b></td>"
-		f"<td align='right'><b>{format_eur(totals['closing'])} EUR</b></td></tr></table>"
+		f"<td align='right'><b>{format_amount(totals['closing'])} {currency}</b></td></tr></table>"
 	)
 
 
@@ -834,7 +1059,7 @@ def send_statement(year: int, month: int, settings=None, force: bool = False) ->
 			frappe.sendmail(
 				recipients=recipients,
 				subject=statement_text("Stripe statement {0}").format(label),
-				message=statement_email_body(label, context["totals"]),
+				message=statement_email_body(label, context["totals"], context["currency"]),
 				attachments=[{"fname": statement_filename(year, month), "fcontent": pdf}],
 				reference_doctype=SETTINGS_DOCTYPE,
 				reference_name=SETTINGS_DOCTYPE,
@@ -858,14 +1083,6 @@ def send_last_month_statement(force: int | str | bool = 0) -> dict[str, Any]:
 	return send_statement(year, month, force=bool(int(force or 0)))
 
 
-TYPE_LABELS = {
-	"donation": "Donation",
-	"commission": "Liberapay commission",
-	"stripe_fee": "Stripe fee",
-	"payout": "Payout to bank",
-}
-
-
 @contextmanager
 def use_language(lang: str | None):
 	"""Render translated content in lang, then restore the request language."""
@@ -887,13 +1104,14 @@ def statement_text(message: str) -> str:
 
 
 def ledger_text(message: str, *args: Any) -> str:
-	"""Ledger remarks are for the Italian accountant, whoever runs the sync."""
-	with use_language(LEDGER_LANGUAGE):
+	"""Ledger remarks use the system language, whoever runs the sync."""
+	with use_language(system_language()):
 		return statement_text(message).format(*args)
 
 
 def statement_context(year: int, month: int | None = None) -> dict[str, Any]:
 	settings = get_settings()
+	defaults = settings_defaults(settings)
 	if month:
 		first, last = month_bounds(year, month)
 		period = f"{month:02d}/{year}"
@@ -904,18 +1122,21 @@ def statement_context(year: int, month: int | None = None) -> dict[str, Any]:
 	if last < start_date:
 		frappe.throw(_("The period ends before the Stripe start date {0}").format(start_date))
 	first = max(first, start_date)
-	before = bank_transaction_movements(settings.bank_account, start_date, first - timedelta(days=1))
+	before = bank_transaction_movements(
+		settings.bank_account, start_date, first - timedelta(days=1), defaults
+	)
 	opening = round(flt(settings.opening_balance) + sum(m.net for m in before), 2)
-	movements = bank_transaction_movements(settings.bank_account, first, last)
-	rows, totals = statement_rows(opening, movements)
+	movements = bank_transaction_movements(settings.bank_account, first, last, defaults)
+	rows, totals = statement_rows(opening, movements, settings.fee_account)
+	stripe_account = bank_gl_account(settings.bank_account)
+	currency = frappe.get_cached_value("Account", stripe_account, "account_currency")
 	today = getdate(nowdate())
 	if last >= today:
 		reference_label = statement_text("current Stripe balance (API /v1/balance)")
-		reference = fetch_balance(settings.get_password("api_key"))
+		reference = fetch_balance(settings.get_password("api_key"), currency)
 	else:
 		reference_label = statement_text("computed running balance")
 		reference = totals["closing"]
-	stripe_account = bank_gl_account(settings.bank_account)
 	ledger = frappe.db.sql(
 		"""select coalesce(sum(debit_in_account_currency - credit_in_account_currency), 0)
 		from `tabGL Entry` where account = %s and is_cancelled = 0 and posting_date <= %s""",
@@ -925,14 +1146,15 @@ def statement_context(year: int, month: int | None = None) -> dict[str, Any]:
 		"company": settings.company,
 		"bank_account": settings.bank_account,
 		"gl_account": stripe_account,
+		"currency": currency,
 		"period": period,
 		"first": first,
 		"last": last,
 		"rows": [
 			{
-				"date": r["movement"].posting_date.strftime("%d/%m/%Y"),
-				"type": statement_text(TYPE_LABELS[r["movement"].category]),
-				"liberapay": r["movement"].liberapay_transfer_id,
+				"date": formatdate(r["movement"].posting_date),
+				"category": movement_label(r["movement"]),
+				"reference": r["movement"].reference,
 				"stripe_id": r["movement"].id,
 				"gross": r["movement"].amount,
 				"fee": r["movement"].fee,
@@ -952,22 +1174,25 @@ def statement_context(year: int, month: int | None = None) -> dict[str, Any]:
 	}
 
 
-def format_eur(value: float) -> str:
+def format_amount(value: float) -> str:
 	return fmt_money(round(flt(value), 2), precision=2)
 
 
 def render_statement_html(year: int, month: int | None = None, context: dict[str, Any] | None = None) -> str:
 	context = dict(context or statement_context(year, month))
-	context["eur"] = format_eur
+	context["amount"] = format_amount
 	context["fdate"] = formatdate
 	return frappe.render_template("fab_banks_import/templates/stripe_statement.html", context)
 
 
 def render_statement_pdf(year: int, month: int | None = None, html: str | None = None) -> bytes:
-	from fab.print_format import get_pdf as fab_get_pdf
-
 	html = html or render_statement_html(year, month)
-	pdf = fab_get_pdf("Standard", html, {}, None, pdf_generator="chrome_pdfa")
+	pdf = None
+	# a PDF/A Chrome generator registered by another app wins over wkhtmltopdf
+	for method in frappe.get_hooks("pdf_generator"):
+		pdf = frappe.get_attr(method)("Standard", html, {}, None, pdf_generator="chrome_pdfa")
+		if pdf:
+			break
 	if pdf is None:
 		from frappe.utils.pdf import get_pdf
 
@@ -991,50 +1216,53 @@ def download_statement(year: int | str, month: int | str | None = None) -> None:
 # setup
 
 
-def find_account(company: str, number: str | None, name: str | None = None) -> str | None:
-	account = None
-	if number:
-		account = frappe.db.get_value(
-			"Account", {"company": company, "account_number": number, "is_group": 0}
-		)
-	if not account and name:
-		account = frappe.db.get_value("Account", {"company": company, "account_name": name, "is_group": 0})
-	return account
+def setup_stripe(
+	company: str,
+	parent_account: str,
+	account_name: str = "Stripe",
+	account_number: str | None = None,
+	currency: str | None = None,
+	bank: str = "Stripe",
+	payout_bank_account: str | None = None,
+	income_account: str | None = None,
+	fee_account: str | None = None,
+	other_account: str | None = None,
+	opening_account: str | None = None,
+) -> dict[str, Any]:
+	"""Idempotent: ledger account, Bank Account and settings for one Stripe balance.
 
-
-def setup_stripe(company: str, api_key: str | None = None) -> dict[str, Any]:
-	"""Idempotent: ledger account 182007 Stripe, Bank Account "Stripe" and settings.
-
-	Only fills settings fields that are still empty; never enables the sync.
+	Only fills settings fields that are still empty; never enables the sync and
+	never stores the API key (set it from the form).
 	"""
-	paypal = find_account(company, "182006", "PayPal")
-	if not paypal:
-		frappe.throw(_("Account 182006 PayPal not found in {0}").format(company))
-	stripe_account = find_account(company, "182007")
+	filters = {"company": company, "account_name": account_name, "is_group": 0}
+	if account_number:
+		filters["account_number"] = account_number
+	stripe_account = frappe.db.get_value("Account", filters)
 	if not stripe_account:
 		doc = frappe.get_doc(
 			{
 				"doctype": "Account",
-				"account_name": "Stripe",
-				"account_number": "182007",
-				"parent_account": frappe.db.get_value("Account", paypal, "parent_account"),
+				"account_name": account_name,
+				"account_number": account_number,
+				"parent_account": parent_account,
 				"company": company,
 				"account_type": "Bank",
-				"account_currency": "EUR",
+				"account_currency": currency
+				or frappe.get_cached_value("Company", company, "default_currency"),
 			}
 		)
 		doc.flags.ignore_permissions = True
 		doc.insert()
 		stripe_account = doc.name
-	if not frappe.db.exists("Bank", "Stripe"):
-		frappe.get_doc({"doctype": "Bank", "bank_name": "Stripe"}).insert(ignore_permissions=True)
+	if not frappe.db.exists("Bank", bank):
+		frappe.get_doc({"doctype": "Bank", "bank_name": bank}).insert(ignore_permissions=True)
 	bank_account = frappe.db.get_value("Bank Account", {"account": stripe_account, "company": company})
 	if not bank_account:
 		doc = frappe.get_doc(
 			{
 				"doctype": "Bank Account",
-				"account_name": "Stripe",
-				"bank": "Stripe",
+				"account_name": account_name,
+				"bank": bank,
 				"is_company_account": 1,
 				"company": company,
 				"account": stripe_account,
@@ -1043,24 +1271,21 @@ def setup_stripe(company: str, api_key: str | None = None) -> dict[str, Any]:
 		doc.flags.ignore_permissions = True
 		doc.insert()
 		bank_account = doc.name
-	sella_account = find_account(company, "182001")
-	defaults = {
+	values = {
 		"company": company,
 		"bank_account": bank_account,
-		"payout_bank_account": frappe.db.get_value(
-			"Bank Account", {"account": sella_account, "company": company, "is_company_account": 1}
-		),
-		"income_account": find_account(company, "320200", "Miscellaneous income"),
-		"fee_account": find_account(company, "5221", "Bank Charges"),
-		"clearing_account": find_account(company, None, "Odoo Migration Clearing"),
+		"payout_bank_account": payout_bank_account,
+		"income_account": income_account,
+		"fee_account": fee_account,
+		"other_account": other_account,
+		"clearing_account": opening_account,
 	}
 	settings = frappe.get_single(SETTINGS_DOCTYPE)
-	for field, value in defaults.items():
-		if not settings.get(field) and value:
-			settings.set(field, value)
-	if api_key:
-		settings.api_key = api_key
+	for fieldname, value in values.items():
+		if value and not settings.get(fieldname):
+			settings.set(fieldname, value)
 	settings.flags.ignore_permissions = True
+	settings.flags.ignore_mandatory = True
 	settings.save()
 	frappe.db.commit()
-	return {field: settings.get(field) for field in defaults} | {"stripe_account": stripe_account}
+	return {fieldname: settings.get(fieldname) for fieldname in values} | {"stripe_account": stripe_account}

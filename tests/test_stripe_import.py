@@ -14,103 +14,271 @@ from fab_banks_import import stripe_import
 
 FIXTURES = Path(__file__).parent / "fixtures" / "stripe_balance_transactions.json"
 ROME = ZoneInfo("Europe/Rome")
+DEFAULTS = stripe_import.Defaults(
+	income_account="Default Income - T",
+	fee_account="Fees - T",
+	other_account="Other - T",
+	cost_center="Main - T",
+)
+ORDER_RULE = {
+	"priority": 10,
+	"label": "Shop order",
+	"metadata_key": "order_id",
+	"income_account": "Sales - T",
+	"cost_center": "Shop - T",
+	"reference_key": "order_id",
+	"refund_treatment": "Fee",
+}
 
 
-def load_movements():
-	raw = json.loads(FIXTURES.read_text())
-	movements = [stripe_import.parse_balance_transaction(row, ROME) for row in raw]
-	stripe_import.link_reversals(movements)
+def raw_rows():
+	return json.loads(FIXTURES.read_text())
+
+
+def load_movements(rules=None, charges=None):
+	movements = [stripe_import.parse_balance_transaction(row, ROME) for row in raw_rows()]
+	stripe_import.classify(movements, [ORDER_RULE] if rules is None else rules, DEFAULTS, charges)
 	return movements
 
 
-class TestClassification(unittest.TestCase):
-	def test_types_map_to_categories(self):
-		categories = {m.id: m.category for m in load_movements()}
+def by_id(movements):
+	return {m.id: m for m in movements}
+
+
+class TestParsing(unittest.TestCase):
+	def test_kinds(self):
+		kinds = {m.id: m.kind for m in load_movements()}
 
 		self.assertEqual(
-			categories,
+			kinds,
 			{
-				"txn_donation_a": "donation",
-				"txn_donation_b": "donation",
-				"txn_reversal_a": "commission",
-				"txn_stripe_fee": "stripe_fee",
+				"txn_charge_a": "charge",
+				"txn_charge_b": "charge",
+				"txn_charge_c": "charge",
+				"txn_refund_a": "refund",
+				"txn_dispute_b": "dispute",
+				"txn_stripe_fee": "fee",
+				"txn_other": "other",
 				"txn_payout": "payout",
 			},
 		)
 
-	def test_refund_and_adjustment_are_commissions(self):
-		for kind in ("payment_refund", "refund", "adjustment"):
-			self.assertEqual(stripe_import.CATEGORY_BY_TYPE[kind], "commission")
+	def test_amounts_and_payout(self):
+		movements = by_id(load_movements())
 
-	def test_amounts_and_liberapay_ids(self):
-		by_id = {m.id: m for m in load_movements()}
+		self.assertEqual((movements["txn_charge_b"].amount, movements["txn_charge_b"].fee), (10.0, 0.45))
+		self.assertEqual(movements["txn_dispute_b"].net, -25.0)
+		self.assertEqual(movements["txn_payout"].payout_arrival_date, date(2026, 3, 18))
+		self.assertEqual(movements["txn_payout"].payout_status, "paid")
+		self.assertEqual(movements["txn_charge_a"].currency, "EUR")
 
-		self.assertEqual((by_id["txn_donation_b"].amount, by_id["txn_donation_b"].fee), (10.0, 0.45))
-		self.assertEqual(by_id["txn_donation_b"].net, 9.55)
-		self.assertEqual(by_id["txn_donation_a"].liberapay_transfer_id, "100001")
-		# the reversal inherits the transfer id of the donation it reverses
-		self.assertEqual(by_id["txn_reversal_a"].liberapay_transfer_id, "100001")
-		self.assertEqual(by_id["txn_payout"].payout_arrival_date, date(2026, 3, 18))
-		self.assertEqual(by_id["txn_payout"].source_id, "po_payout_a")
+	def test_inconsistent_net_fails_loudly(self):
+		raw = raw_rows()[1] | {"net": 1000}
 
-	def test_description_never_carries_stripe_free_text(self):
-		raw = json.loads(FIXTURES.read_text())[0] | {"description": "donation from Jane Doe jane@example.com"}
-		movement = stripe_import.parse_balance_transaction(raw, ROME)
+		with self.assertRaises(ValueError):
+			stripe_import.parse_balance_transaction(raw, ROME)
+
+	def test_description_never_carries_customer_email(self):
+		movement = by_id(load_movements())["txn_charge_b"]
 
 		text = stripe_import.bank_transaction_description(movement)
 
-		self.assertNotIn("Jane", text)
-		self.assertNotIn("@", text)
-		self.assertIn("Liberapay transfer 100001", text)
+		self.assertNotIn("buyer@example.com", text)
+		self.assertIn("Shop order", text)
+		self.assertIn("B-2", text)
 
-	def test_unknown_type_fails_loudly(self):
-		raw = json.loads(FIXTURES.read_text())[0] | {"type": "payout_failure"}
 
-		with self.assertRaises(ValueError):
-			stripe_import.parse_balance_transaction(raw, ROME)
+class TestRules(unittest.TestCase):
+	def test_rule_sets_category_account_cost_center_and_reference(self):
+		charge = by_id(load_movements())["txn_charge_a"]
 
-	def test_non_eur_fails_loudly(self):
-		raw = json.loads(FIXTURES.read_text())[0] | {"currency": "usd"}
+		self.assertTrue(charge.matched)
+		self.assertEqual(
+			(charge.category, charge.account, charge.cost_center, charge.reference),
+			("Shop order", "Sales - T", "Shop - T", "A-1"),
+		)
 
-		with self.assertRaises(ValueError):
-			stripe_import.parse_balance_transaction(raw, ROME)
+	def test_no_rule_falls_back_to_defaults(self):
+		charge = by_id(load_movements())["txn_charge_c"]
 
-	def test_inconsistent_net_fails_loudly(self):
-		raw = json.loads(FIXTURES.read_text())[1] | {"net": 1000}
+		self.assertFalse(charge.matched)
+		self.assertEqual(
+			(charge.category, charge.account, charge.cost_center, charge.reference),
+			("", "Default Income - T", "Main - T", "Gift card"),
+		)
 
-		with self.assertRaises(ValueError):
-			stripe_import.parse_balance_transaction(raw, ROME)
+	def test_priority_order_wins(self):
+		vip = {"priority": 5, "label": "VIP", "customer": "BUYER@example.com", "income_account": "VIP - T"}
+
+		movements = by_id(load_movements(rules=[ORDER_RULE, vip]))
+
+		self.assertEqual(movements["txn_charge_b"].category, "VIP")
+		self.assertEqual(movements["txn_charge_a"].category, "Shop order")
+
+	def test_conditions_combine_with_and(self):
+		rule = {
+			"label": "Web",
+			"metadata_key": "channel",
+			"metadata_value": "web",
+			"description_contains": "order b",
+		}
+		wrong_value = rule | {"metadata_value": "store"}
+		context = by_id(load_movements())["txn_charge_b"].context
+
+		self.assertTrue(stripe_import.rule_matches(rule, "charge", "charge", context))
+		self.assertFalse(stripe_import.rule_matches(wrong_value, "charge", "charge", context))
+		self.assertFalse(
+			stripe_import.rule_matches(rule | {"description_contains": "gift"}, "charge", "charge", context)
+		)
+
+	def test_customer_matches_id_or_email(self):
+		context = by_id(load_movements())["txn_charge_b"].context
+
+		self.assertTrue(stripe_import.rule_matches({"customer": "cus_test_1"}, "charge", "charge", context))
+		self.assertTrue(
+			stripe_import.rule_matches({"customer": "buyer@example.com"}, "charge", "charge", context)
+		)
+		self.assertFalse(stripe_import.rule_matches({"customer": "cus_other"}, "charge", "charge", context))
+
+	def test_movement_type_matches_type_or_kind(self):
+		self.assertTrue(stripe_import.rule_matches({"movement_type": "payment"}, "payment", "charge", {}))
+		self.assertTrue(stripe_import.rule_matches({"movement_type": "charge"}, "payment", "charge", {}))
+		self.assertFalse(stripe_import.rule_matches({"movement_type": "stripe_fee"}, "payment", "charge", {}))
+
+	def test_fee_and_other_movements(self):
+		movements = by_id(load_movements())
+
+		self.assertEqual(movements["txn_stripe_fee"].account, "Fees - T")
+		self.assertEqual(movements["txn_other"].account, "Other - T")
+		self.assertFalse(movements["txn_other"].matched)
+
+
+class TestReversalsFollowCharge(unittest.TestCase):
+	def test_refund_follows_charge_rule_as_fee(self):
+		refund = by_id(load_movements())["txn_refund_a"]
+
+		self.assertTrue(refund.matched)
+		self.assertEqual(
+			(refund.category, refund.account, refund.cost_center, refund.reference),
+			("Shop order", "Fees - T", "Shop - T", "A-1"),
+		)
+
+	def test_refund_reverses_income_by_default(self):
+		rule = ORDER_RULE | {"refund_treatment": "Reverse Income"}
+
+		refund = by_id(load_movements(rules=[rule]))["txn_refund_a"]
+
+		self.assertEqual(refund.account, "Sales - T")
+
+	def test_refund_of_charge_before_the_window(self):
+		raw = raw_rows()[3] | {"source": {"id": "pyr_old", "object": "refund", "charge": "py_old"}}
+		movement = stripe_import.parse_balance_transaction(raw, ROME)
+		charges = {"py_old": ("charge", {"metadata": {"order_id": "Z-9"}, "description": "Old order"})}
+
+		stripe_import.classify([movement], [ORDER_RULE], DEFAULTS, charges)
+
+		self.assertEqual((movement.category, movement.reference), ("Shop order", "Z-9"))
+
+	def test_refund_without_known_charge_is_unclassified(self):
+		raw = raw_rows()[3] | {"source": {"id": "pyr_old", "object": "refund", "charge": "py_unknown"}}
+		movement = stripe_import.parse_balance_transaction(raw, ROME)
+
+		stripe_import.classify([movement], [ORDER_RULE], DEFAULTS)
+
+		self.assertFalse(movement.matched)
+		self.assertEqual(movement.account, "Default Income - T")
+
+	def test_dispute_reverses_income_and_fee_goes_to_fee_account(self):
+		movements = load_movements()
+		dispute = by_id(movements)["txn_dispute_b"]
+
+		self.assertEqual(
+			(dispute.category, dispute.account, dispute.reference), ("Shop order", "Sales - T", "B-2")
+		)
+		lines = stripe_import.month_lines([dispute], DEFAULTS.fee_account).lines
+		self.assertEqual(lines, {("Sales - T", "Shop - T"): 10.0, ("Fees - T", "Shop - T"): 15.0})
 
 
 class TestMonthlyAggregation(unittest.TestCase):
-	def test_month_totals_split_income_and_charges(self):
-		totals = stripe_import.month_totals(load_movements())
+	def test_one_line_per_account_and_cost_center(self):
+		month = stripe_import.month_lines(load_movements(), DEFAULTS.fee_account)
 
-		self.assertEqual(totals.count, 4)
-		self.assertEqual(totals.donations, 22.55)
-		self.assertEqual(totals.donation_fees, 0.45)
-		self.assertEqual(totals.commissions, 1.38)
-		self.assertEqual(totals.stripe_fees, 0.07)
-		self.assertEqual(totals.charges, 1.9)
-		self.assertEqual((totals.deposits, totals.withdrawals), (22.1, 1.45))
-		self.assertEqual(totals.net, 20.65)
-		self.assertTrue(totals.is_balanced())
+		self.assertEqual(
+			month.lines,
+			{
+				("Sales - T", "Shop - T"): -12.55,
+				("Fees - T", "Shop - T"): 16.83,
+				("Default Income - T", "Main - T"): -5.0,
+				("Fees - T", "Main - T"): 0.07,
+				("Other - T", "Main - T"): 0.5,
+			},
+		)
+		self.assertEqual((month.deposits, month.withdrawals, month.net), (27.1, 26.95, 0.15))
+		self.assertEqual(month.count, 7)
+		self.assertEqual(month.categories, ["Shop order"])
 
 	def test_payouts_are_excluded(self):
-		payouts = [m for m in load_movements() if m.category == "payout"]
+		payouts = [m for m in load_movements() if m.kind == "payout"]
 
-		totals = stripe_import.month_totals(payouts)
+		month = stripe_import.month_lines(payouts, DEFAULTS.fee_account)
 
-		self.assertEqual((totals.count, totals.net), (0, 0))
+		self.assertEqual((month.count, month.net, month.lines), (0, 0, {}))
 
-	def test_statement_rows_running_balance(self):
-		rows, totals = stripe_import.statement_rows(100.0, load_movements())
+	def test_statement_totals(self):
+		rows, totals = stripe_import.statement_rows(100.0, load_movements(), DEFAULTS.fee_account)
 
-		self.assertEqual([r["balance"] for r in rows], [112.55, 122.1, 120.72, 120.65, 100.0])
-		self.assertEqual(totals["donations"], 22.55)
-		self.assertEqual(totals["charges"], 1.9)
-		self.assertEqual(totals["payouts"], 20.65)
+		self.assertEqual(rows[-1]["balance"], 100.0)
+		self.assertEqual(totals["categories"], {"Shop order": 22.55, "Charge": 5.0, "Other": -0.5})
+		self.assertEqual((totals["fees"], totals["refunds"], totals["payouts"]), (16.9, 10.0, 0.15))
 		self.assertEqual((totals["opening"], totals["closing"]), (100.0, 100.0))
+
+
+class TestEdgeCases(unittest.TestCase):
+	def test_payout_failure_offsets_its_payout(self):
+		payout = raw_rows()[-1]
+		failure = payout | {"id": "txn_payout_failure", "type": "payout_failure", "amount": 15, "net": 15}
+		movements = [stripe_import.parse_balance_transaction(row, ROME) for row in (payout, failure)]
+
+		self.assertEqual([m.kind for m in movements], ["payout", "payout"])
+		self.assertEqual(stripe_import.month_lines(movements, DEFAULTS.fee_account).count, 0)
+		_rows, totals = stripe_import.statement_rows(0.0, movements, DEFAULTS.fee_account)
+		self.assertEqual((totals["payouts"], totals["closing"]), (0.0, 0.0))
+
+	def test_refund_failure_nets_against_refunds(self):
+		rows = raw_rows()
+		failure = rows[3] | {"id": "txn_refund_failure", "type": "refund_failure", "amount": 138, "net": 138}
+		movements = [
+			stripe_import.parse_balance_transaction(row, ROME) for row in (rows[0], rows[3], failure)
+		]
+		rule = ORDER_RULE | {"refund_treatment": "Reverse Income"}
+		stripe_import.classify(movements, [rule], DEFAULTS)
+
+		_rows, totals = stripe_import.statement_rows(0.0, movements, DEFAULTS.fee_account)
+
+		self.assertEqual(totals["refunds"], 0.0)
+		self.assertEqual(totals["categories"], {"Shop order": 12.55})
+
+	def test_unreadable_old_charge_is_flagged_not_fatal(self):
+		raw = raw_rows()[3] | {"source": {"id": "pyr_old", "object": "refund", "charge": "py_gone"}}
+		movement = stripe_import.parse_balance_transaction(raw, ROME)
+		flagged = []
+
+		with patch.object(stripe_import, "stripe_get", side_effect=frappe.ValidationError("404")):
+			charges = stripe_import.fetch_missing_charges("key", [movement], {movement.id}, flagged)
+
+		self.assertEqual(charges, {})
+		self.assertEqual(len(flagged), 1)
+
+	def test_old_charge_fetched_only_while_unclassified(self):
+		raw = raw_rows()[3] | {"source": {"id": "pyr_old", "object": "refund", "charge": "py_old"}}
+		movement = stripe_import.parse_balance_transaction(raw, ROME)
+
+		with patch.object(stripe_import, "stripe_get", return_value={"metadata": {"order_id": "Z"}}) as get:
+			self.assertEqual(stripe_import.fetch_missing_charges("key", [movement], set(), []), {})
+			charges = stripe_import.fetch_missing_charges("key", [movement], {movement.id}, [])
+
+		get.assert_called_once()
+		self.assertEqual(charges["py_old"][0], "payment")
 
 
 class TestOpeningBalance(unittest.TestCase):
@@ -123,9 +291,9 @@ class TestOpeningBalance(unittest.TestCase):
 		stripe_import.check_balance_invariant(opening, movements, 25.0)
 
 	def test_opening_without_payout(self):
-		movements = [m for m in load_movements() if m.category != "payout"]
+		movements = [m for m in load_movements() if m.kind != "payout"]
 
-		self.assertEqual(stripe_import.compute_opening_balance(30.65, movements), 10.0)
+		self.assertEqual(stripe_import.compute_opening_balance(10.15, movements), 10.0)
 
 	def test_invariant_mismatch_fails_loudly(self):
 		with self.assertRaises(ValueError):
@@ -151,14 +319,14 @@ class TestPayoutMatching(unittest.TestCase):
 		self.assertEqual(stripe_import.pick_payout_match(rows, 95.69, self.arrival)["name"], "near")
 
 	def test_description_match_is_case_insensitive(self):
-		rows = [self.row("upper", 18, description="BONIFICO DALL'ESTERO STRIPE TECHNOLOGY EUROPE LTD")]
+		rows = [self.row("upper", 18, description="TRANSFER FROM STRIPE TECHNOLOGY EUROPE LTD")]
 
 		self.assertEqual(stripe_import.pick_payout_match(rows, 95.69, self.arrival)["name"], "upper")
 
 	def test_rejects_wrong_amount_description_window_or_reconciled(self):
 		rows = [
 			self.row("amount", 18, amount=95.68),
-			self.row("description", 18, description="BONIFICO ACME SRL"),
+			self.row("description", 18, description="TRANSFER FROM ACME LTD"),
 			self.row("window", 24),
 			self.row("reconciled", 18, unallocated_amount=0, status="Reconciled"),
 		]
@@ -228,13 +396,16 @@ class TestStatementSchedule(unittest.TestCase):
 		)
 
 
-FAKE_TOTALS = {
-	"opening": 10.0,
-	"donations": 22.55,
-	"charges": 1.9,
-	"payouts": 20.65,
-	"net": 0.0,
-	"closing": 10.0,
+FAKE_CONTEXT = {
+	"currency": "EUR",
+	"totals": {
+		"opening": 10.0,
+		"categories": {"Shop order": 22.55},
+		"fees": 1.9,
+		"refunds": 0.0,
+		"payouts": 20.65,
+		"closing": 10.0,
+	},
 }
 
 
@@ -258,7 +429,7 @@ class TestStatementEmail(unittest.TestCase):
 
 	def send(self, force=False):
 		with (
-			patch.object(stripe_import, "statement_context", return_value={"totals": FAKE_TOTALS}),
+			patch.object(stripe_import, "statement_context", return_value=FAKE_CONTEXT),
 			patch.object(stripe_import, "render_statement_html", return_value="<html></html>"),
 			patch.object(stripe_import, "render_statement_pdf", return_value=b"%PDF-1.7 fake"),
 		):
@@ -286,12 +457,15 @@ class TestStatementEmail(unittest.TestCase):
 			by_recipient[recipients[0]] = row
 			# inline PDF attachments travel inside the MIME message
 			self.assertEqual(row.message.count("Content-Type: application/pdf"), 1)
-		self.assertIn("Subject: Estratto conto Stripe 10/2026", by_recipient["it.reader@example.com"].message)
-		self.assertIn("Saldo iniziale", by_recipient["it.reader@example.com"].message)
-		self.assertIn("estratto-conto-stripe-2026-10.pdf", by_recipient["it.reader@example.com"].message)
-		self.assertIn("Subject: Stripe statement 10/2026", by_recipient["en.reader@example.com"].message)
-		self.assertIn("Opening balance", by_recipient["en.reader@example.com"].message)
-		self.assertIn("stripe-statement-2026-10.pdf", by_recipient["en.reader@example.com"].message)
+		italian = by_recipient["it.reader@example.com"].message
+		english = by_recipient["en.reader@example.com"].message
+		self.assertIn("Subject: Estratto conto Stripe 10/2026", italian)
+		self.assertIn("Saldo iniziale", italian)
+		self.assertIn("estratto-conto-stripe-2026-10.pdf", italian)
+		self.assertIn("Subject: Stripe statement 10/2026", english)
+		self.assertIn("Opening balance", english)
+		self.assertIn("Shop order", english)
+		self.assertIn("stripe-statement-2026-10.pdf", english)
 		self.assertEqual(
 			frappe.db.get_single_value(stripe_import.SETTINGS_DOCTYPE, "last_statement_sent"), "2026-10"
 		)

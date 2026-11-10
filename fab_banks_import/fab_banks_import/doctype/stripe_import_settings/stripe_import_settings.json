@@ -19,6 +19,10 @@
   "income_account",
   "fee_account",
   "clearing_account",
+  "other_account",
+  "default_cost_center",
+  "rules_section",
+  "rules",
   "statement_section",
   "statement_email_enabled",
   "last_statement_sent",
@@ -104,20 +108,49 @@
   {
    "fieldname": "income_account",
    "fieldtype": "Link",
-   "label": "Donation Income Account",
-   "options": "Account"
+   "label": "Income Account",
+   "options": "Account",
+   "description": "Default income account for charges no rule matches"
   },
   {
    "fieldname": "fee_account",
    "fieldtype": "Link",
    "label": "Fee Account",
-   "options": "Account"
+   "options": "Account",
+   "description": "Stripe fees, Stripe side costs and refunds treated as fees"
   },
   {
    "fieldname": "clearing_account",
    "fieldtype": "Link",
-   "label": "Opening Clearing Account",
-   "options": "Account"
+   "label": "Opening Counter Account",
+   "options": "Account",
+   "description": "Counterpart of the opening balance Journal Entry"
+  },
+  {
+   "fieldname": "other_account",
+   "fieldtype": "Link",
+   "label": "Other Movements Account",
+   "options": "Account",
+   "description": "Currency conversions and movement types without a mapping; flagged in the sync log"
+  },
+  {
+   "fieldname": "default_cost_center",
+   "fieldtype": "Link",
+   "label": "Default Cost Center",
+   "options": "Cost Center",
+   "description": "Defaults to the company cost center"
+  },
+  {
+   "fieldname": "rules_section",
+   "fieldtype": "Section Break",
+   "label": "Classification Rules",
+   "description": "Applied in priority order; the first matching rule wins. Refunds and disputes follow the rule of their original charge."
+  },
+  {
+   "fieldname": "rules",
+   "fieldtype": "Table",
+   "label": "Rules",
+   "options": "Stripe Import Rule"
   },
   {
    "fieldname": "statement_section",
@@ -164,7 +197,7 @@
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-11-10 15:00:00.000000",
+ "modified": "2026-11-11 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "Fab Banks Import",
  "name": "Stripe Import Settings",

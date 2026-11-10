@@ -21,5 +21,13 @@ class TestInstall(unittest.TestCase):
 
 		self.assertEqual(
 			[field["fieldname"] for field in custom_fields["Bank Transaction"]],
-			["fab_liberapay_transfer_id", "fab_stripe_gross", "fab_stripe_fee"],
+			[
+				"fab_stripe_reference",
+				"fab_stripe_category",
+				"fab_stripe_kind",
+				"fab_stripe_gross",
+				"fab_stripe_fee",
+				"fab_stripe_account",
+				"fab_stripe_cost_center",
+			],
 		)
