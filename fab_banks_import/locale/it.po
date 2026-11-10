@@ -287,3 +287,15 @@ msgstr "Contropartita saldo iniziale"
 
 msgid "Classification Rules"
 msgstr "Regole di classificazione"
+
+msgid "Stripe movements in other currencies were not imported: {0}"
+msgstr "Movimenti Stripe in altre valute non importati: {0}"
+
+msgid "The Stripe account, its payout bank and the company must share one currency"
+msgstr "Il conto Stripe, la banca dei bonifici e l'azienda devono avere la stessa valuta"
+
+msgid "Payout Bank Description Contains"
+msgstr "La descrizione del bonifico in banca contiene"
+
+msgid "Ledger account {0} holds {1}, the Stripe import expects {2}"
+msgstr "Il conto {0} ha saldo {1}, l'import Stripe si aspetta {2}"

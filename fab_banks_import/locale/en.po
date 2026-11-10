@@ -287,3 +287,15 @@ msgstr "Opening Counter Account"
 
 msgid "Classification Rules"
 msgstr "Classification Rules"
+
+msgid "Stripe movements in other currencies were not imported: {0}"
+msgstr "Stripe movements in other currencies were not imported: {0}"
+
+msgid "The Stripe account, its payout bank and the company must share one currency"
+msgstr "The Stripe account, its payout bank and the company must share one currency"
+
+msgid "Payout Bank Description Contains"
+msgstr "Payout Bank Description Contains"
+
+msgid "Ledger account {0} holds {1}, the Stripe import expects {2}"
+msgstr "Ledger account {0} holds {1}, the Stripe import expects {2}"

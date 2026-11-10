@@ -2,16 +2,16 @@
 <html lang="{{ lang }}">
 <head>
 <meta charset="utf-8">
-<meta name="pdf-title" content="{{ title }}">
-<meta name="pdf-author" content="{{ company }}">
-<title>{{ title }}</title>
+<meta name="pdf-title" content="{{ title|e }}">
+<meta name="pdf-author" content="{{ company|e }}">
+<title>{{ title|e }}</title>
 <style>
 	.print-format { margin-top: 14mm; margin-bottom: 14mm; margin-left: 14mm; margin-right: 14mm; }
 	div.print-format { margin: 0 !important; padding: 0 !important; }
 	body { font-family: Montserrat, "DejaVu Sans", sans-serif; font-size: 8.5pt; color: #222; margin: 0; }
 	h1 { font-size: 15pt; margin: 0 0 2mm; font-weight: 700; }
-	.meta { border-top: 2px solid #f07c00; padding-top: 2mm; margin-bottom: 5mm; display: flex; justify-content: space-between; }
-	.meta div { line-height: 1.5; }
+	table.meta { border-top: 2px solid #444; margin-bottom: 5mm; table-layout: auto; }
+	table.meta td { border: none; padding: 2mm 0 0; line-height: 1.5; }
 	table { width: 100%; border-collapse: collapse; table-layout: fixed; }
 	thead { display: table-header-group; }
 	th { text-align: left; font-weight: 600; border-bottom: 1px solid #222; padding: 1.5mm 1mm; }
@@ -33,18 +33,18 @@
 <body>
 <div class="print-format">
 	<h1>{{ _("Stripe statement", context="stripe_statement") }}</h1>
-	<div class="meta">
-		<div>
-			<strong>{{ company }}</strong><br>
-			{{ _("Account", context="stripe_statement") }}: {{ bank_account }} ({{ gl_account }})<br>
-			{{ _("Currency", context="stripe_statement") }}: {{ currency }}
-		</div>
-		<div style="text-align:right">
+	<table class="meta"><tr>
+		<td>
+			<strong>{{ company|e }}</strong><br>
+			{{ _("Account", context="stripe_statement") }}: {{ bank_account|e }} ({{ gl_account|e }})<br>
+			{{ _("Currency", context="stripe_statement") }}: {{ currency|e }}
+		</td>
+		<td style="text-align:right">
 			{{ _("Period", context="stripe_statement") }}: <strong>{{ period }}</strong><br>
 			{{ _("From {0} to {1}", context="stripe_statement").format(fdate(first), fdate(last)) }}<br>
 			{{ _("Generated on {0}", context="stripe_statement").format(generated) }}
-		</div>
-	</div>
+		</td>
+	</tr></table>
 
 	<table>
 		<colgroup>
@@ -65,9 +65,9 @@
 			{% for row in rows %}
 			<tr>
 				<td>{{ row.date }}</td>
-				<td>{{ row.category }}</td>
-				<td class="wrap">{{ row.reference or "" }}</td>
-				<td class="wrap small">{{ row.stripe_id }}</td>
+				<td>{{ row.category|e }}</td>
+				<td class="wrap">{{ (row.reference or "")|e }}</td>
+				<td class="wrap small">{{ row.stripe_id|e }}</td>
 				<td class="num">{{ amount(row.gross) }}</td>
 				<td class="num">{{ amount(row.fee) if row.fee else "" }}</td>
 				<td class="num">{{ amount(row.net) }}</td>
@@ -86,7 +86,7 @@
 	<table class="summary">
 		<tr><td>{{ _("Opening balance", context="stripe_statement") }}</td><td class="num">{{ amount(totals.opening) }}</td></tr>
 		{% for label, value in totals.categories.items() %}
-		<tr><td>{{ label }}</td><td class="num">{{ amount(value) }}</td></tr>
+		<tr><td>{{ label|e }}</td><td class="num">{{ amount(value) }}</td></tr>
 		{% endfor %}
 		<tr><td>{{ _("Fees", context="stripe_statement") }}</td><td class="num">{{ amount(-totals.fees) }}</td></tr>
 		<tr><td>{{ _("Refunds", context="stripe_statement") }}</td><td class="num">{{ amount(-totals.refunds) }}</td></tr>
@@ -95,9 +95,9 @@
 	</table>
 
 	<div class="check">
-		{{ _("Check: computed closing balance {0} {3}, {1} {2} {3}", context="stripe_statement").format(amount(totals.closing), reference_label, amount(reference), currency) }}:
-		{% if difference == 0 %}<span class="ok">{{ _("matches", context="stripe_statement") }}</span>{% else %}<span class="ko">{{ _("difference {0} {1}", context="stripe_statement").format(amount(difference), currency) }}</span>{% endif %}<br>
-		<span class="small">{{ _("Ledger balance of {0} on {1}: {2} {3} (months not yet closed are not posted)", context="stripe_statement").format(gl_account, fdate(last), amount(ledger), currency) }}</span>
+		{{ _("Check: computed closing balance {0} {3}, {1} {2} {3}", context="stripe_statement").format(amount(totals.closing), reference_label|e, amount(reference), currency|e) }}:
+		{% if difference == 0 %}<span class="ok">{{ _("matches", context="stripe_statement") }}</span>{% else %}<span class="ko">{{ _("difference {0} {1}", context="stripe_statement").format(amount(difference), currency|e) }}</span>{% endif %}<br>
+		<span class="small">{{ _("Ledger balance of {0} on {1}: {2} {3} (months not yet closed are not posted)", context="stripe_statement").format(gl_account|e, fdate(last), amount(ledger), currency|e) }}</span>
 	</div>
 </div>
 </body>

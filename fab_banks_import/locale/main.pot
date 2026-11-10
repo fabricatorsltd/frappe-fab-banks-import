@@ -287,3 +287,15 @@ msgstr ""
 
 msgid "Classification Rules"
 msgstr ""
+
+msgid "Stripe movements in other currencies were not imported: {0}"
+msgstr ""
+
+msgid "The Stripe account, its payout bank and the company must share one currency"
+msgstr ""
+
+msgid "Payout Bank Description Contains"
+msgstr ""
+
+msgid "Ledger account {0} holds {1}, the Stripe import expects {2}"
+msgstr ""

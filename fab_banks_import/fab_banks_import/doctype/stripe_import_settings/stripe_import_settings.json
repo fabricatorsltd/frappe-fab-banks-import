@@ -9,12 +9,14 @@
   "start_date",
   "column_break_main",
   "last_sync",
+  "currency",
   "opening_balance",
   "opening_journal_entry",
   "accounting_section",
   "company",
   "bank_account",
   "payout_bank_account",
+  "payout_description_contains",
   "column_break_accounting",
   "income_account",
   "fee_account",
@@ -64,11 +66,19 @@
    "read_only": 1
   },
   {
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "label": "Currency",
+   "options": "Currency",
+   "read_only": 1,
+   "description": "Currency of the Stripe ledger account"
+  },
+  {
    "fieldname": "opening_balance",
    "fieldtype": "Currency",
    "label": "Opening Balance",
    "read_only": 1,
-   "options": "EUR"
+   "options": "currency"
   },
   {
    "fieldname": "opening_journal_entry",
@@ -100,6 +110,12 @@
    "label": "Payout Bank Account",
    "options": "Bank Account",
    "description": "Bank account that receives Stripe payouts"
+  },
+  {
+   "fieldname": "payout_description_contains",
+   "fieldtype": "Data",
+   "label": "Payout Bank Description Contains",
+   "description": "Optional text the bank deposit description must contain to match a payout"
   },
   {
    "fieldname": "column_break_accounting",
@@ -197,7 +213,7 @@
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-11-11 10:00:00.000000",
+ "modified": "2026-11-11 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Fab Banks Import",
  "name": "Stripe Import Settings",

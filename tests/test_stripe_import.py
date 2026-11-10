@@ -303,7 +303,7 @@ class TestOpeningBalance(unittest.TestCase):
 class TestPayoutMatching(unittest.TestCase):
 	arrival = date(2026, 3, 18)
 
-	def row(self, name, day, amount=95.69, description="BE Stripe Technology Europe Ltd", **extra):
+	def row(self, name, day, amount=95.69, description="TRANSFER FROM PROCESSOR", **extra):
 		return {
 			"name": name,
 			"date": date(2026, 3, day),
@@ -313,34 +313,95 @@ class TestPayoutMatching(unittest.TestCase):
 			"status": "Unreconciled",
 		} | extra
 
-	def test_picks_closest_stripe_deposit(self):
+	def payout(self, key, day=18, amount=95.69):
+		return {"key": key, "amount": amount, "arrival_date": date(2026, 3, day)}
+
+	def test_picks_closest_deposit(self):
 		rows = [self.row("far", 22), self.row("near", 19)]
 
-		self.assertEqual(stripe_import.pick_payout_match(rows, 95.69, self.arrival)["name"], "near")
+		self.assertEqual(stripe_import.match_payouts([self.payout("p")], rows), {"p": "near"})
 
-	def test_description_match_is_case_insensitive(self):
-		rows = [self.row("upper", 18, description="TRANSFER FROM STRIPE TECHNOLOGY EUROPE LTD")]
+	def test_description_filter_is_optional_and_case_insensitive(self):
+		rows = [
+			self.row("other", 18, description="ACME LTD"),
+			self.row("bank", 19, description="FROM STRIPE"),
+		]
 
-		self.assertEqual(stripe_import.pick_payout_match(rows, 95.69, self.arrival)["name"], "upper")
+		self.assertEqual(stripe_import.match_payouts([self.payout("p")], rows), {"p": "other"})
+		self.assertEqual(stripe_import.match_payouts([self.payout("p")], rows, "stripe"), {"p": "bank"})
 
-	def test_rejects_wrong_amount_description_window_or_reconciled(self):
+	def test_rejects_wrong_amount_window_or_reconciled(self):
 		rows = [
 			self.row("amount", 18, amount=95.68),
-			self.row("description", 18, description="TRANSFER FROM ACME LTD"),
 			self.row("window", 24),
 			self.row("reconciled", 18, unallocated_amount=0, status="Reconciled"),
 		]
 
-		self.assertIsNone(stripe_import.pick_payout_match(rows, 95.69, self.arrival))
+		self.assertEqual(stripe_import.match_payouts([self.payout("p")], rows), {"p": None})
 
 	def test_window_edges(self):
-		self.assertIsNotNone(stripe_import.pick_payout_match([self.row("edge", 23)], 95.69, self.arrival))
-		self.assertIsNotNone(stripe_import.pick_payout_match([self.row("edge", 13)], 95.69, self.arrival))
+		for day in (13, 23):
+			rows = [self.row("edge", day)]
+			self.assertEqual(stripe_import.match_payouts([self.payout("p")], rows), {"p": "edge"})
 
-	def test_tie_returns_nothing(self):
+	def test_tie_stays_unmatched(self):
 		rows = [self.row("before", 17), self.row("after", 19)]
 
-		self.assertIsNone(stripe_import.pick_payout_match(rows, 95.69, self.arrival))
+		self.assertEqual(stripe_import.match_payouts([self.payout("p")], rows), {"p": None})
+
+	def test_one_deposit_per_payout_nearest_first(self):
+		payouts = [self.payout("early", 17), self.payout("late", 20)]
+		rows = [self.row("d17", 17), self.row("d21", 21)]
+
+		self.assertEqual(stripe_import.match_payouts(payouts, rows), {"early": "d17", "late": "d21"})
+
+	def test_deposit_equally_close_to_two_payouts_stays_unmatched(self):
+		payouts = [self.payout("a", 16), self.payout("b", 20)]
+
+		self.assertEqual(stripe_import.match_payouts(payouts, [self.row("d18", 18)]), {"a": None, "b": None})
+
+	def test_ambiguous_deposit_is_not_given_to_a_farther_payout(self):
+		payouts = [self.payout("a", 16), self.payout("b", 20), self.payout("c", 22)]
+
+		result = stripe_import.match_payouts(payouts, [self.row("d18", 18)])
+
+		self.assertEqual(result, {"a": None, "b": None, "c": None})
+
+
+class TestCurrencies(unittest.TestCase):
+	def test_smallest_unit_per_currency(self):
+		self.assertEqual(stripe_import.to_amount(1255, "eur"), 12.55)
+		self.assertEqual(stripe_import.to_amount(1255, "JPY"), 1255.0)
+		self.assertEqual(stripe_import.to_amount(1255, "kwd"), 1.255)
+		self.assertTrue(stripe_import.format_amount(1.255, "KWD").endswith("255"))
+
+	def test_zero_decimal_movement(self):
+		raw = raw_rows()[0] | {"currency": "jpy", "amount": 500, "fee": 30, "net": 470}
+
+		movement = stripe_import.parse_balance_transaction(raw, ROME)
+
+		self.assertEqual((movement.amount, movement.fee, movement.net), (500.0, 30.0, 470.0))
+
+
+class TestAdjustments(unittest.TestCase):
+	def test_debit_adjustment_is_a_fee_credit_goes_to_other(self):
+		debit = raw_rows()[5] | {"id": "txn_adj_debit", "type": "adjustment", "reporting_category": "other"}
+		credit = debit | {"id": "txn_adj_credit", "amount": 200, "net": 200}
+		movements = [stripe_import.parse_balance_transaction(row, ROME) for row in (debit, credit)]
+
+		stripe_import.classify(movements, [], DEFAULTS)
+
+		self.assertEqual([m.kind for m in movements], ["fee", "other"])
+		self.assertEqual([m.account for m in movements], ["Fees - T", "Other - T"])
+
+	def test_rule_account_applies_to_other_movements(self):
+		other = by_id(
+			load_movements(
+				rules=[{"label": "Transfers", "movement_type": "transfer", "income_account": "Transfers - T"}]
+			)
+		)["txn_other"]
+
+		self.assertEqual((other.category, other.account), ("Transfers", "Transfers - T"))
 
 
 class TestStatementSchedule(unittest.TestCase):
@@ -433,7 +494,7 @@ class TestStatementEmail(unittest.TestCase):
 			patch.object(stripe_import, "render_statement_html", return_value="<html></html>"),
 			patch.object(stripe_import, "render_statement_pdf", return_value=b"%PDF-1.7 fake"),
 		):
-			return stripe_import.send_statement(2026, 10, settings=self.settings, force=force)
+			return stripe_import._send_statement(2026, 10, self.settings, force=force)
 
 	def queued(self):
 		return frappe.get_all(
